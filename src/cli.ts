@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { access, mkdir, readFile, rename } from 'node:fs/promises';
+import { access, mkdir, readFile } from 'node:fs/promises';
 import { isAbsolute, resolve } from 'node:path';
 import { DukascopyNodeAdapter } from './adapters/dukascopy-node-adapter.js';
 import { acquireDay, snapshotPathForDay } from './core/acquire-day.js';
 import { atomicWriteFile } from './core/atomic-write.js';
 import { classifyError } from './core/failure-classification.js';
+import { backupExistingFile } from './core/force-replacement.js';
 import { planUtcDays } from './core/job-planner.js';
 import { loadLatestAudits, verifyReusableSnapshot } from './core/resume.js';
 import { appendJsonl, appendLog, buildSha256Sums, verifySha256Sums } from './core/run-evidence.js';
@@ -94,11 +95,6 @@ async function exists(path: string): Promise<boolean> {
   try { await access(path); return true; } catch { return false; }
 }
 
-async function backupIfPresent(path: string): Promise<void> {
-  if (!(await exists(path))) return;
-  await rename(path, `${path}.backup-${Date.now()}`);
-}
-
 async function commandAcquire(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const symbolArg = required(options, 'symbol').toUpperCase();
@@ -137,8 +133,8 @@ async function commandAcquire(args: string[]): Promise<void> {
     const previous = JSON.parse(await readFile(jobPath, 'utf8')) as JobConfig;
     const comparablePrevious = { ...previous, force: false };
     const comparableCurrent = { ...jobConfig, force: false };
-    if (JSON.stringify(comparablePrevious) !== JSON.stringify(comparableCurrent) && !force) {
-      throw new Error('Existing run directory job_config does not match requested job; use a new --out path');
+    if (JSON.stringify(comparablePrevious) !== JSON.stringify(comparableCurrent)) {
+      throw new Error('Existing run directory job_config does not match requested job; --force cannot change run identity. Use a new --out path');
     }
   }
 
@@ -169,7 +165,7 @@ async function commandAcquire(args: string[]): Promise<void> {
         continue;
       }
     }
-    if (force) await backupIfPresent(snapshotPath);
+    if (force) await backupExistingFile(snapshotPath);
 
     let finalAudit: DailyAudit | null = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
