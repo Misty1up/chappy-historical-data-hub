@@ -60,12 +60,19 @@ function required(options: Map<string, string | boolean>, key: string): string {
   return value;
 }
 
-function intOption(options: Map<string, string | boolean>, key: string, fallback: number, min: number): number {
+function intOption(
+  options: Map<string, string | boolean>,
+  key: string,
+  fallback: number,
+  min: number,
+  max?: number,
+): number {
   const raw = options.get(key);
   if (raw === undefined) return fallback;
   if (typeof raw !== 'string' || !/^\d+$/.test(raw)) throw new Error(`--${key} must be an integer`);
   const value = Number(raw);
   if (!Number.isSafeInteger(value) || value < min) throw new Error(`--${key} must be >= ${min}`);
+  if (max !== undefined && value > max) throw new Error(`--${key} must be <= ${max}`);
   return value;
 }
 
@@ -128,7 +135,13 @@ async function commandAcquire(args: string[]): Promise<void> {
 
   const batchSize = intOption(options, 'batch-size', 10, 1);
   const batchPauseMs = intOption(options, 'batch-pause-ms', 1000, 0);
-  const maxAttempts = intOption(options, 'max-attempts', PROJECT_DEFAULT_MAX_ATTEMPTS, 1);
+  const maxAttempts = intOption(
+    options,
+    'max-attempts',
+    PROJECT_DEFAULT_MAX_ATTEMPTS,
+    1,
+    PROJECT_DEFAULT_MAX_ATTEMPTS,
+  );
   const force = options.get('force') === true;
   const days = planUtcDays(fromArg, toArg);
 
