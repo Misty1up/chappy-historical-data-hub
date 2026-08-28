@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "git_commit", "symbol", "source", "source_adapter", "source_adapter_version", "requested_from_utc", "requested_to_utc", "acquisition_unit", "total_days", "pass_days", "warn_days", "fail_days", "tick_count_total", "precision_status", "canonical_promotion_allowed", "phase_1_source_snapshot_only", "generated_at_utc"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "run_id": {"type": "string"},
+    "git_commit": {"type": "string"},
+    "symbol": {"type": "string"},
+    "source": {"const": "dukascopy"},
+    "source_adapter": {"const": "dukascopy-node"},
+    "source_adapter_version": {"const": "1.50.0"},
+    "requested_from_utc": {"type": "string", "format": "date-time"},
+    "requested_to_utc": {"type": "string", "format": "date-time"},
+    "acquisition_unit": {"const": "UTC_DAY"},
+    "total_days": {"type": "integer", "minimum": 1},
+    "pass_days": {"type": "integer", "minimum": 0},
+    "warn_days": {"type": "integer", "minimum": 0},
+    "fail_days": {"type": "integer", "minimum": 0},
+    "tick_count_total": {"type": "integer", "minimum": 0},
+    "precision_status": {"enum": ["UNVERIFIED", "VERIFIED"]},
+    "canonical_promotion_allowed": {"type": "boolean"},
+    "phase_1_source_snapshot_only": {"const": true},
+    "generated_at_utc": {"type": "string", "format": "date-time"}
+  }
+}
