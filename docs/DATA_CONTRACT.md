@@ -1,5 +1,13 @@
 # Phase 1 Data Contract
 
+## Source boundary
+
+The Phase 1 persisted **Source Tick Snapshot** is the immutable research-input representation produced after `dukascopy-node@1.50.0` deterministically decodes the Dukascopy feed response. It is not a claim that provider transport bytes such as BI5/JSON response bodies are persisted byte-for-byte.
+
+Acquisition provenance is therefore mandatory. `source_adapter.json` records the exact library version and decode/normalization settings used to produce the Source Tick Snapshot.
+
+The adapter is fixed to UTC offset 0, tick feed, volumes enabled, volume units expressed as individual units, cache disabled, and upstream library retry disabled. Price reconstruction is performed by the pinned upstream JSON-API multiplier decoder; no additional price rounding is performed by this project after the decoded tick is returned.
+
 ## SourceTick
 
 The acquisition layer emits, in original source order:
@@ -19,7 +27,7 @@ Path:
 
 `source_ticks/dukascopy-node/<symbol>/YYYY/MM/YYYY-MM-DD.jsonl.gz`
 
-Each JSONL record is serialized from SourceTick without price rounding. Snapshot gzip generation is deterministic so repeated serialization of identical SourceTick content yields identical bytes and SHA-256.
+Each JSONL record is serialized from SourceTick without project-side price rounding. Snapshot gzip generation is deterministic so repeated serialization of identical SourceTick content yields identical bytes and SHA-256.
 
 ## Audit
 
