@@ -33,6 +33,12 @@ test('out-of-order timestamps fail integrity', () => {
   assert.equal(audit.out_of_order_count, 1);
 });
 
+test('invalid non-positive price fails integrity', () => {
+  const audit = auditSourceTicks('2026-01-01', [tick(1000, 0, 1, 0)]);
+  assert.equal(audit.status, 'FAIL');
+  assert.equal(audit.invalid_price_count, 1);
+});
+
 test('negative spread fails integrity', () => {
   const audit = auditSourceTicks('2026-01-01', [tick(1000, 2, 1, 0)]);
   assert.equal(audit.status, 'FAIL');
