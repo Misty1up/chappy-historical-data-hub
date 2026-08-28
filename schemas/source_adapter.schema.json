@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapter_id", "adapter_version", "library", "library_version", "feed_type"],
+  "properties": {
+    "adapter_id": {"const": "dukascopy-node"},
+    "adapter_version": {"type": "string"},
+    "library": {"const": "dukascopy-node"},
+    "library_version": {"const": "1.50.0"},
+    "feed_type": {"const": "tick"}
+  }
+}
