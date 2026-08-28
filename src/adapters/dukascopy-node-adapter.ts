@@ -1,14 +1,7 @@
 import { getHistoricalRates } from 'dukascopy-node';
+import type { ConfigJsonTickItem, InstrumentType, JsonItemTick } from 'dukascopy-node';
 import type { AcquisitionAdapter } from './acquisition-adapter.js';
 import type { FetchTicksOptions, SourceTick, SymbolRegistryEntry } from '../types/contracts.js';
-
-type DukascopyTick = {
-  timestamp: number;
-  askPrice: number;
-  bidPrice: number;
-  askVolume?: number | null;
-  bidVolume?: number | null;
-};
 
 function finiteOrNull(value: number | null | undefined): number | null {
   if (value === null || value === undefined) return null;
@@ -26,20 +19,29 @@ export class DukascopyNodeAdapter implements AcquisitionAdapter {
     toUtc: Date,
     options: FetchTicksOptions,
   ): Promise<SourceTick[]> {
-    const raw = await getHistoricalRates({
-      instrument: symbol.source_instrument as never,
+    const config: ConfigJsonTickItem = {
+      instrument: symbol.source_instrument as InstrumentType,
       dates: { from: fromUtc, to: toUtc },
-      timeframe: 'tick' as never,
-      format: 'json' as never,
+      timeframe: 'tick',
+      format: 'json',
+      utcOffset: 0,
+      volumes: true,
+      volumeUnits: 'units',
+      ignoreFlats: false,
       batchSize: options.batchSize,
       pauseBetweenBatchesMs: options.pauseBetweenBatchesMs,
-    } as never);
+      useCache: false,
+      retryCount: 0,
+      retryOnEmpty: false,
+      failAfterRetryCount: true,
+    };
 
+    const raw: JsonItemTick[] = await getHistoricalRates(config);
     if (!Array.isArray(raw)) {
       throw new Error(`Unexpected dukascopy-node payload type: ${typeof raw}`);
     }
 
-    return (raw as DukascopyTick[]).map((tick, sourceSeq) => {
+    return raw.map((tick, sourceSeq) => {
       if (!Number.isSafeInteger(tick.timestamp)) {
         throw new Error(`Unsafe or invalid timestamp at source_seq=${sourceSeq}: ${String(tick.timestamp)}`);
       }
