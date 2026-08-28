@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1.0",
+  "symbols": [
+    {
+      "canonical_symbol": "EURUSD",
+      "enabled": true,
+      "source_adapter_id": "dukascopy-node",
+      "source_instrument": "eurusd",
+      "source_feed_type": "tick",
+      "source_start_hint_utc": "2003-05-04T00:00:00.000Z",
+      "source_start_hint_provenance": "Dukascopy HistoryStart/instrument matrix",
+      "source_start_hint_status": "REFERENCE_ONLY",
+      "precision_status": "UNVERIFIED",
+      "price_digits": null,
+      "price_scale": null
+    },
+    {
+      "canonical_symbol": "XAUUSD",
+      "enabled": true,
+      "source_adapter_id": "dukascopy-node",
+      "source_instrument": "xauusd",
+      "source_feed_type": "tick",
+      "source_start_hint_utc": "2003-05-05T00:00:00.000Z",
+      "source_start_hint_provenance": "Dukascopy HistoryStart/instrument matrix",
+      "source_start_hint_status": "REFERENCE_ONLY",
+      "precision_status": "UNVERIFIED",
+      "price_digits": null,
+      "price_scale": null
+    }
+  ]
+}
