@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/symbol_registry.schema.json",
+  "type": "object",
+  "required": ["schema_version", "symbols"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {"type": "string"},
+    "symbols": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["canonical_symbol", "enabled", "source_adapter_id", "source_instrument", "source_feed_type", "source_start_hint_utc", "source_start_hint_provenance", "source_start_hint_status", "precision_status", "price_digits", "price_scale"],
+        "properties": {
+          "canonical_symbol": {"type": "string", "pattern": "^[A-Z0-9._-]+$"},
+          "enabled": {"type": "boolean"},
+          "source_adapter_id": {"const": "dukascopy-node"},
+          "source_instrument": {"type": "string", "pattern": "^[a-z0-9._-]+$"},
+          "source_feed_type": {"const": "tick"},
+          "source_start_hint_utc": {"type": "string", "format": "date-time"},
+          "source_start_hint_provenance": {"type": "string"},
+          "source_start_hint_status": {"enum": ["REFERENCE_ONLY", "VERIFIED_BY_FETCH"]},
+          "precision_status": {"enum": ["UNVERIFIED", "VERIFIED"]},
+          "price_digits": {"type": ["integer", "null"], "minimum": 0},
+          "price_scale": {"type": ["integer", "null"], "minimum": 1}
+        }
+      }
+    }
+  }
+}
