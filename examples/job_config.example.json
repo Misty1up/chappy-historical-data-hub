@@ -6,6 +6,6 @@
   "out_dir": "./runs/xauusd-smoke",
   "batch_size": 10,
   "batch_pause_ms": 1000,
-  "max_attempts": 3,
+  "max_attempts": 4,
   "force": false
 }
