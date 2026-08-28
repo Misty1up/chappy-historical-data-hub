@@ -34,7 +34,7 @@ export async function acquireDay(input: AcquireDayInput): Promise<DailyAudit> {
     input.options,
   );
 
-  const audit = auditSourceTicks(input.window.dateUtc, ticks);
+  const audit = auditSourceTicks(input.window.dateUtc, ticks, input.window);
   if (audit.status !== 'PASS') return audit;
 
   const snapshotPath = snapshotPathForDay(input.runRoot, input.symbol, input.window.dateUtc);
