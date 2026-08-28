@@ -19,8 +19,8 @@ export function serializeSourceTicksJsonl(ticks: SourceTick[]): string {
   return `${ticks.map(tick => JSON.stringify(toSerializableSourceTick(tick))).join('\n')}\n`;
 }
 
-function toBinaryBytes(data: Uint8Array): BinaryBytes {
-  return new Uint8Array(data);
+function toBinaryBytes(data: ArrayLike<number>): BinaryBytes {
+  return Uint8Array.from(data);
 }
 
 export function gzipSourceTicks(ticks: SourceTick[]): BinaryBytes {
@@ -34,7 +34,8 @@ export async function writeSourceSnapshot(path: string, ticks: SourceTick[]): Pr
 
 export async function readSourceSnapshot(path: string): Promise<SerializableSourceTick[]> {
   const compressed = toBinaryBytes(await readFile(path));
-  const text = gunzipSync(compressed).toString('utf8');
+  const decompressed = toBinaryBytes(gunzipSync(compressed));
+  const text = new TextDecoder('utf-8').decode(decompressed);
   if (text.length === 0) return [];
   return text.trimEnd().split('\n').map(line => JSON.parse(line) as SerializableSourceTick);
 }
