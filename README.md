@@ -17,20 +17,20 @@ The current branch is intentionally CLI-first. It acquires Dukascopy tick data i
 - Same-timestamp and exact duplicate ticks are audited, not deleted.
 - Daily snapshots are deterministic `.jsonl.gz` with SHA-256 evidence.
 - Resume is allowed only when the previous PASS snapshot still matches its recorded SHA-256.
+- Project-side retry defaults to four attempts with exponential backoff and bounded jitter; the upstream library retry is disabled.
 - `precision_status=UNVERIFIED` permits acquisition/audit only. It does **not** permit Canonical or MT5 promotion.
+- Phase 1 manifests always keep `canonical_promotion_allowed=false`; promotion belongs to the later Canonical Packet Builder.
 
 ## Installation
 
-Node.js 18+ is required. `dukascopy-node` is pinned to exactly `1.50.0`.
+Node.js 18+ is required. `dukascopy-node` is pinned to exactly `1.50.0` and the verified dependency graph is committed in `package-lock.json`.
 
 ```bash
-npm install
+npm ci
 npm run typecheck
 npm test
 npm run build
 ```
-
-`package-lock.json` is required before Phase 1 can be accepted and will be generated/verified in the local execution gate.
 
 ## Acquire
 
@@ -43,14 +43,14 @@ npm run hdh -- acquire \
   --out ./runs/xauusd-smoke
 ```
 
-`--from` is inclusive UTC 00:00; `--to` is exclusive UTC 00:00. `--out` must be relative so local personal paths are not written into evidence.
+`--from` is inclusive UTC 00:00; `--to` is exclusive UTC 00:00. `--out` must resolve inside the current working directory so local personal paths are not written into evidence.
 
 Optional acquisition controls:
 
 ```text
 --batch-size <integer>       default 10
 --batch-pause-ms <integer>   default 1000
---max-attempts <integer>     default 3
+--max-attempts <integer>     default 4
 --force                      reacquire instead of hash-verified resume
 ```
 
@@ -79,6 +79,18 @@ npm run hdh -- rehash --run ./runs/xauusd-smoke
 ├─ SHA256SUMS.txt
 └─ manifest.json
 ```
+
+The manifest records runtime, OS, batch/retry settings, PASS/WARN/EMPTY/FAIL counts, source file count, first/last tick, daily source hashes, a deterministic source hash root, and overall integrity status.
+
+## CI
+
+Pull requests and pushes to `main` run the locked static gate on Node.js 18, 20, 22 and 24:
+
+```text
+npm ci -> typecheck -> unit tests -> build
+```
+
+External Dukascopy network smoke is kept out of automatic CI; accepted local Evidence remains the source for network acquisition verification.
 
 ## Not in Phase 1
 
