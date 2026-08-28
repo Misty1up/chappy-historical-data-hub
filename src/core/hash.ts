@@ -10,6 +10,10 @@ export function sha256Buffer(data: ArrayLike<number>): string {
   return createHash('sha256').update(toBinaryBytes(data)).digest('hex');
 }
 
+export function sha256Text(text: string): string {
+  return createHash('sha256').update(text).digest('hex');
+}
+
 export async function sha256File(path: string): Promise<string> {
   return await new Promise((resolve, reject) => {
     const hash = createHash('sha256');
