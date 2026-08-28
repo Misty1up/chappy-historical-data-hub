@@ -1,17 +1,24 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
 import { access, mkdir, readFile } from 'node:fs/promises';
-import { isAbsolute, resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { DukascopyNodeAdapter } from './adapters/dukascopy-node-adapter.js';
 import { acquireDay, snapshotPathForDay } from './core/acquire-day.js';
 import { atomicWriteFile } from './core/atomic-write.js';
 import { classifyError } from './core/failure-classification.js';
 import { backupExistingFile } from './core/force-replacement.js';
+import { sha256Text } from './core/hash.js';
 import { planUtcDays } from './core/job-planner.js';
 import { loadLatestAudits, verifyReusableSnapshot } from './core/resume.js';
 import { appendJsonl, appendLog, buildSha256Sums, verifySha256Sums } from './core/run-evidence.js';
+import {
+  PROJECT_DEFAULT_MAX_ATTEMPTS,
+  PROJECT_RETRY_BASE_MS,
+  PROJECT_RETRY_JITTER_MS,
+  waitBeforeRetry,
+} from './core/retry-policy.js';
 import { loadSymbolRegistry, resolveSymbol } from './core/symbol-registry.js';
-import type { DailyAudit, JobConfig } from './types/contracts.js';
+import type { DailyAudit, JobConfig, UtcDayWindow } from './types/contracts.js';
 
 const ADAPTER_VERSION = '0.1.0';
 const DUKASCOPY_NODE_VERSION = '1.50.0';
@@ -70,16 +77,32 @@ function gitCommit(): string {
   }
 }
 
-function failureAudit(dateUtc: string, failureClass: string, note: string): DailyAudit {
+function resolveSafeRelativePath(pathArg: string, optionName: string): string {
+  if (isAbsolute(pathArg)) throw new Error(`--${optionName} must be a relative path`);
+  const cwd = resolve(process.cwd());
+  const resolved = resolve(cwd, pathArg);
+  const rel = relative(cwd, resolved);
+  if (!rel || rel === '.' || rel.startsWith(`..${process.platform === 'win32' ? '\\' : '/'}`) || rel === '..' || isAbsolute(rel)) {
+    throw new Error(`--${optionName} must resolve inside the current working directory`);
+  }
+  return resolved;
+}
+
+function failureAudit(window: UtcDayWindow, failureClass: string, note: string): DailyAudit {
   return {
-    date_utc: dateUtc,
+    date_utc: window.dateUtc,
+    requested_from_utc: window.fromUtc.toISOString(),
+    requested_to_utc: window.toUtc.toISOString(),
     status: 'FAIL',
     tick_count: 0,
     first_timestamp_msc: null,
     last_timestamp_msc: null,
     exact_duplicate_count: 0,
     same_timestamp_pair_count: 0,
+    out_of_range_count: 0,
     out_of_order_count: 0,
+    invalid_bid_count: 0,
+    invalid_ask_count: 0,
     invalid_price_count: 0,
     negative_spread_count: 0,
     null_bid_volume_count: 0,
@@ -101,18 +124,17 @@ async function commandAcquire(args: string[]): Promise<void> {
   const fromArg = required(options, 'from');
   const toArg = required(options, 'to');
   const outArg = required(options, 'out');
-  if (isAbsolute(outArg)) throw new Error('--out must be a relative path to avoid recording personal absolute paths');
+  const runRoot = resolveSafeRelativePath(outArg, 'out');
 
   const batchSize = intOption(options, 'batch-size', 10, 1);
   const batchPauseMs = intOption(options, 'batch-pause-ms', 1000, 0);
-  const maxAttempts = intOption(options, 'max-attempts', 3, 1);
+  const maxAttempts = intOption(options, 'max-attempts', PROJECT_DEFAULT_MAX_ATTEMPTS, 1);
   const force = options.get('force') === true;
   const days = planUtcDays(fromArg, toArg);
 
   const registryPath = resolve(process.cwd(), 'config', 'symbol_registry.json');
   const registry = await loadSymbolRegistry(registryPath);
   const symbol = resolveSymbol(registry, symbolArg);
-  const runRoot = resolve(process.cwd(), outArg);
   await mkdir(resolve(runRoot, 'integrity'), { recursive: true });
 
   const taskId = `HDH_${symbolArg}_${fromArg}_${toArg}`.replaceAll('-', '');
@@ -150,18 +172,19 @@ async function commandAcquire(args: string[]): Promise<void> {
 
   const runLogPath = resolve(runRoot, 'run.log');
   const auditPath = resolve(runRoot, 'integrity', 'daily_audit.jsonl');
-  await appendLog(runLogPath, `run_id=${taskId} git_commit=${gitCommit()} node=${process.version} adapter=dukascopy-node@${DUKASCOPY_NODE_VERSION} symbol=${symbolArg} range=${fromArg}..${toArg} batch_size=${batchSize} batch_pause_ms=${batchPauseMs} max_attempts=${maxAttempts} volume_units=units utc_offset=0 use_cache=false library_retry_count=0`);
+  await appendLog(runLogPath, `run_id=${taskId} git_commit=${gitCommit()} node=${process.version} os=${process.platform}/${process.arch} adapter=dukascopy-node@${DUKASCOPY_NODE_VERSION} symbol=${symbolArg} range=${fromArg}..${toArg} batch_size=${batchSize} batch_pause_ms=${batchPauseMs} max_attempts=${maxAttempts} retry_base_ms=${PROJECT_RETRY_BASE_MS} retry_jitter_ms=${PROJECT_RETRY_JITTER_MS} volume_units=units utc_offset=0 use_cache=false library_retry_count=0`);
 
   const latestAudits = await loadLatestAudits(auditPath);
   const adapter = new DukascopyNodeAdapter();
 
   for (const window of days) {
     const snapshotPath = snapshotPathForDay(runRoot, symbol, window.dateUtc);
+    const snapshotRel = relative(runRoot, snapshotPath).replaceAll('\\', '/');
     const previousAudit = latestAudits.get(window.dateUtc);
 
     if (!force && previousAudit?.snapshot_path) {
       if (await verifyReusableSnapshot(previousAudit, snapshotPath)) {
-        await appendLog(runLogPath, `date=${window.dateUtc} action=resume_skip ticks=${previousAudit.tick_count} hash=${previousAudit.snapshot_sha256}`);
+        await appendLog(runLogPath, `date=${window.dateUtc} range=${window.fromUtc.toISOString()}..${window.toUtc.toISOString()} action=resume_skip ticks=${previousAudit.tick_count} path=${snapshotRel} hash=${previousAudit.snapshot_sha256}`);
         continue;
       }
     }
@@ -169,7 +192,7 @@ async function commandAcquire(args: string[]): Promise<void> {
 
     let finalAudit: DailyAudit | null = null;
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-      await appendLog(runLogPath, `date=${window.dateUtc} attempt=${attempt} action=fetch_start`);
+      await appendLog(runLogPath, `date=${window.dateUtc} range=${window.fromUtc.toISOString()}..${window.toUtc.toISOString()} attempt=${attempt} action=fetch_start path=${snapshotRel}`);
       try {
         finalAudit = await acquireDay({
           adapter,
@@ -178,13 +201,18 @@ async function commandAcquire(args: string[]): Promise<void> {
           runRoot,
           options: { batchSize, pauseBetweenBatchesMs: batchPauseMs },
         });
-        await appendLog(runLogPath, `date=${window.dateUtc} attempt=${attempt} action=fetch_end ticks=${finalAudit.tick_count} status=${finalAudit.status} hash=${finalAudit.snapshot_sha256 ?? 'NONE'}`);
+        await appendLog(runLogPath, `date=${window.dateUtc} attempt=${attempt} action=fetch_end ticks=${finalAudit.tick_count} status=${finalAudit.status} failure_class=${finalAudit.failure_class ?? 'NONE'} path=${finalAudit.snapshot_path ?? 'NONE'} hash=${finalAudit.snapshot_sha256 ?? 'NONE'}`);
         break;
       } catch (error) {
         const failureClass = classifyError(error);
         const message = error instanceof Error ? error.message : String(error);
         await appendLog(runLogPath, `date=${window.dateUtc} attempt=${attempt} action=fetch_error class=${failureClass} message=${JSON.stringify(message)}`);
-        if (attempt === maxAttempts) finalAudit = failureAudit(window.dateUtc, failureClass, message);
+        if (attempt === maxAttempts) {
+          finalAudit = failureAudit(window, failureClass, message);
+        } else {
+          const delayMs = await waitBeforeRetry(attempt);
+          await appendLog(runLogPath, `date=${window.dateUtc} attempt=${attempt} action=retry_wait delay_ms=${delayMs}`);
+        }
       }
     }
 
@@ -193,11 +221,21 @@ async function commandAcquire(args: string[]): Promise<void> {
     latestAudits.set(window.dateUtc, finalAudit);
   }
 
-  const audits = days.map(day => latestAudits.get(day.dateUtc) ?? failureAudit(day.dateUtc, 'UNKNOWN', 'Missing audit'));
+  const audits = days.map(day => latestAudits.get(day.dateUtc) ?? failureAudit(day, 'UNKNOWN', 'Missing audit'));
   const passDays = audits.filter(a => a.status === 'PASS').length;
   const warnDays = audits.filter(a => a.status === 'WARN').length;
   const failDays = audits.filter(a => a.status === 'FAIL').length;
+  const emptyDays = audits.filter(a => a.tick_count === 0 && a.status === 'WARN').length;
   const tickCountTotal = audits.reduce((sum, audit) => sum + audit.tick_count, 0);
+  const sourceHashes = audits
+    .filter((audit): audit is DailyAudit & { snapshot_sha256: string } => typeof audit.snapshot_sha256 === 'string')
+    .map(audit => ({ date_utc: audit.date_utc, sha256: audit.snapshot_sha256 }))
+    .sort((a, b) => a.date_utc.localeCompare(b.date_utc));
+  const sourceHashRootInput = sourceHashes.map(item => `${item.date_utc}  ${item.sha256}\n`).join('');
+  const sourceHashRoot = sha256Text(sourceHashRootInput);
+  const firstTimestamp = audits.map(a => a.first_timestamp_msc).find((value): value is string => value !== null) ?? null;
+  const lastTimestamp = [...audits].reverse().map(a => a.last_timestamp_msc).find((value): value is string => value !== null) ?? null;
+  const integrityStatus = failDays > 0 ? 'INCOMPLETE' : warnDays > 0 ? 'WARN' : 'PASS';
 
   const csvRows = ['date_utc,status,failure_class,note'];
   for (const audit of audits.filter(a => a.status !== 'PASS')) {
@@ -210,6 +248,8 @@ async function commandAcquire(args: string[]): Promise<void> {
     schema_version: '0.1.0',
     run_id: taskId,
     git_commit: gitCommit(),
+    node_version: process.version,
+    os: `${process.platform}/${process.arch}`,
     symbol: symbolArg,
     source: 'dukascopy',
     source_adapter: 'dukascopy-node',
@@ -217,19 +257,31 @@ async function commandAcquire(args: string[]): Promise<void> {
     requested_from_utc: `${fromArg}T00:00:00.000Z`,
     requested_to_utc: `${toArg}T00:00:00.000Z`,
     acquisition_unit: 'UTC_DAY',
+    batch_size: batchSize,
+    batch_pause_ms: batchPauseMs,
+    max_attempts: maxAttempts,
+    retry_base_ms: PROJECT_RETRY_BASE_MS,
+    retry_jitter_ms: PROJECT_RETRY_JITTER_MS,
     total_days: days.length,
     pass_days: passDays,
     warn_days: warnDays,
+    empty_days: emptyDays,
     fail_days: failDays,
     tick_count_total: tickCountTotal,
+    source_file_count: sourceHashes.length,
+    first_timestamp_msc: firstTimestamp,
+    last_timestamp_msc: lastTimestamp,
+    daily_source_hashes: sourceHashes,
+    source_hash_root: sourceHashRoot,
+    integrity_status: integrityStatus,
     precision_status: symbol.precision_status,
-    canonical_promotion_allowed: symbol.precision_status === 'VERIFIED' && failDays === 0,
+    canonical_promotion_allowed: false,
     phase_1_source_snapshot_only: true,
     generated_at_utc: new Date().toISOString(),
   };
   await atomicWriteFile(resolve(runRoot, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`);
   await buildSha256Sums(runRoot);
-  await appendLog(runLogPath, `run_complete pass_days=${passDays} warn_days=${warnDays} fail_days=${failDays} ticks=${tickCountTotal} canonical_promotion_allowed=${manifest.canonical_promotion_allowed}`);
+  await appendLog(runLogPath, `run_complete pass_days=${passDays} warn_days=${warnDays} empty_days=${emptyDays} fail_days=${failDays} ticks=${tickCountTotal} source_files=${sourceHashes.length} integrity_status=${integrityStatus} source_hash_root=${sourceHashRoot} canonical_promotion_allowed=false`);
 
   console.log(JSON.stringify(manifest, null, 2));
   if (failDays > 0) process.exitCode = 2;
@@ -238,15 +290,15 @@ async function commandAcquire(args: string[]): Promise<void> {
 async function commandStatus(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const runArg = required(options, 'run');
-  if (isAbsolute(runArg)) throw new Error('--run must be relative');
-  console.log(await readFile(resolve(process.cwd(), runArg, 'manifest.json'), 'utf8'));
+  const runRoot = resolveSafeRelativePath(runArg, 'run');
+  console.log(await readFile(resolve(runRoot, 'manifest.json'), 'utf8'));
 }
 
 async function commandVerify(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const runArg = required(options, 'run');
-  if (isAbsolute(runArg)) throw new Error('--run must be relative');
-  const result = await verifySha256Sums(resolve(process.cwd(), runArg));
+  const runRoot = resolveSafeRelativePath(runArg, 'run');
+  const result = await verifySha256Sums(runRoot);
   console.log(JSON.stringify(result, null, 2));
   if (result.mismatches.length) process.exitCode = 3;
 }
@@ -254,8 +306,8 @@ async function commandVerify(args: string[]): Promise<void> {
 async function commandRehash(args: string[]): Promise<void> {
   const options = parseOptions(args);
   const runArg = required(options, 'run');
-  if (isAbsolute(runArg)) throw new Error('--run must be relative');
-  await buildSha256Sums(resolve(process.cwd(), runArg));
+  const runRoot = resolveSafeRelativePath(runArg, 'run');
+  await buildSha256Sums(runRoot);
   console.log('SHA256SUMS.txt regenerated');
 }
 
