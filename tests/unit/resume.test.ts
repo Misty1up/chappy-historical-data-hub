@@ -9,13 +9,27 @@ import type { DailyAudit } from '../../src/types/contracts.js';
 
 function audit(hash: string): DailyAudit {
   return {
-    date_utc: '2026-01-01', status: 'PASS', tick_count: 1,
-    first_timestamp_msc: '1', last_timestamp_msc: '1',
-    exact_duplicate_count: 0, same_timestamp_pair_count: 0,
-    out_of_order_count: 0, invalid_price_count: 0, negative_spread_count: 0,
-    null_bid_volume_count: 0, null_ask_volume_count: 0,
-    snapshot_path: 'snapshot', snapshot_sha256: hash,
-    failure_class: null, note: null,
+    date_utc: '2026-01-01',
+    requested_from_utc: '2026-01-01T00:00:00.000Z',
+    requested_to_utc: '2026-01-02T00:00:00.000Z',
+    status: 'PASS',
+    tick_count: 1,
+    first_timestamp_msc: '1',
+    last_timestamp_msc: '1',
+    exact_duplicate_count: 0,
+    same_timestamp_pair_count: 0,
+    out_of_range_count: 0,
+    out_of_order_count: 0,
+    invalid_bid_count: 0,
+    invalid_ask_count: 0,
+    invalid_price_count: 0,
+    negative_spread_count: 0,
+    null_bid_volume_count: 0,
+    null_ask_volume_count: 0,
+    snapshot_path: 'snapshot',
+    snapshot_sha256: hash,
+    failure_class: null,
+    note: null,
   };
 }
 
