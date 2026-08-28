@@ -53,13 +53,18 @@ export type DailyAuditStatus = 'PASS' | 'WARN' | 'FAIL';
 
 export interface DailyAudit {
   date_utc: string;
+  requested_from_utc: string | null;
+  requested_to_utc: string | null;
   status: DailyAuditStatus;
   tick_count: number;
   first_timestamp_msc: string | null;
   last_timestamp_msc: string | null;
   exact_duplicate_count: number;
   same_timestamp_pair_count: number;
+  out_of_range_count: number;
   out_of_order_count: number;
+  invalid_bid_count: number;
+  invalid_ask_count: number;
   invalid_price_count: number;
   negative_spread_count: number;
   null_bid_volume_count: number;
