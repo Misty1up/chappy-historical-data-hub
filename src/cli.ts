@@ -14,6 +14,20 @@ import type { DailyAudit, JobConfig } from './types/contracts.js';
 
 const ADAPTER_VERSION = '0.1.0';
 const DUKASCOPY_NODE_VERSION = '1.50.0';
+const SOURCE_ADAPTER_EVIDENCE = {
+  adapter_id: 'dukascopy-node',
+  adapter_version: ADAPTER_VERSION,
+  library: 'dukascopy-node',
+  library_version: DUKASCOPY_NODE_VERSION,
+  feed_type: 'tick',
+  utc_offset: 0,
+  volumes: true,
+  volume_units: 'units',
+  ignore_flats: false,
+  use_cache: false,
+  library_retry_count: 0,
+  price_decode: 'dukascopy-node-json-api-multiplier',
+} as const;
 
 function parseOptions(args: string[]): Map<string, string | boolean> {
   const map = new Map<string, string | boolean>();
@@ -129,13 +143,7 @@ async function commandAcquire(args: string[]): Promise<void> {
   }
 
   await atomicWriteFile(jobPath, `${JSON.stringify(jobConfig, null, 2)}\n`);
-  await atomicWriteFile(resolve(runRoot, 'source_adapter.json'), `${JSON.stringify({
-    adapter_id: 'dukascopy-node',
-    adapter_version: ADAPTER_VERSION,
-    library: 'dukascopy-node',
-    library_version: DUKASCOPY_NODE_VERSION,
-    feed_type: 'tick',
-  }, null, 2)}\n`);
+  await atomicWriteFile(resolve(runRoot, 'source_adapter.json'), `${JSON.stringify(SOURCE_ADAPTER_EVIDENCE, null, 2)}\n`);
   await atomicWriteFile(resolve(runRoot, 'symbol_registry_snapshot.json'), `${JSON.stringify({
     schema_version: registry.schema_version,
     symbols: [symbol],
@@ -146,7 +154,7 @@ async function commandAcquire(args: string[]): Promise<void> {
 
   const runLogPath = resolve(runRoot, 'run.log');
   const auditPath = resolve(runRoot, 'integrity', 'daily_audit.jsonl');
-  await appendLog(runLogPath, `run_id=${taskId} git_commit=${gitCommit()} node=${process.version} adapter=dukascopy-node@${DUKASCOPY_NODE_VERSION} symbol=${symbolArg} range=${fromArg}..${toArg} batch_size=${batchSize} batch_pause_ms=${batchPauseMs} max_attempts=${maxAttempts}`);
+  await appendLog(runLogPath, `run_id=${taskId} git_commit=${gitCommit()} node=${process.version} adapter=dukascopy-node@${DUKASCOPY_NODE_VERSION} symbol=${symbolArg} range=${fromArg}..${toArg} batch_size=${batchSize} batch_pause_ms=${batchPauseMs} max_attempts=${maxAttempts} volume_units=units utc_offset=0 use_cache=false library_retry_count=0`);
 
   const latestAudits = await loadLatestAudits(auditPath);
   const adapter = new DukascopyNodeAdapter();
