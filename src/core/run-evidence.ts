@@ -1,5 +1,5 @@
 import { appendFile, mkdir, readFile, readdir, stat } from 'node:fs/promises';
-import { relative, resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 import { atomicWriteFile } from './atomic-write.js';
 import { sha256File } from './hash.js';
 
@@ -22,6 +22,17 @@ async function walkFiles(root: string, current = root): Promise<string[]> {
     else if (entry.isFile()) files.push(absolute);
   }
   return files;
+}
+
+function resolveRunRelativePath(runRoot: string, rel: string): string {
+  if (!rel || isAbsolute(rel)) throw new Error(`Invalid SHA256SUMS relative path: ${rel}`);
+  const root = resolve(runRoot);
+  const absolute = resolve(root, rel);
+  const back = relative(root, absolute);
+  if (!back || back === '.' || back === '..' || back.startsWith('../') || back.startsWith('..\\') || isAbsolute(back)) {
+    throw new Error(`SHA256SUMS path escapes run root: ${rel}`);
+  }
+  return absolute;
 }
 
 export async function buildSha256Sums(runRoot: string): Promise<string> {
@@ -48,7 +59,13 @@ export async function verifySha256Sums(runRoot: string): Promise<{ checked: numb
     const match = /^([a-f0-9]{64})  (.+)$/.exec(line);
     if (!match) throw new Error(`Invalid SHA256SUMS line: ${line}`);
     const [, expected, rel] = match;
-    const absolute = resolve(runRoot, rel!);
+    let absolute: string;
+    try {
+      absolute = resolveRunRelativePath(runRoot, rel!);
+    } catch {
+      mismatches.push(rel!);
+      continue;
+    }
     try {
       if (!(await stat(absolute)).isFile()) throw new Error('not a file');
       const actual = await sha256File(absolute);
