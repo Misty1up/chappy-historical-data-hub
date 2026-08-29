@@ -17,6 +17,10 @@ import {
 
 const JSON_NUMBER = '-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?';
 
+function toOwnedBytes(data: ArrayLike<number>): Uint8Array<ArrayBuffer> {
+  return Uint8Array.from(data);
+}
+
 function extractNumberField(line: string, field: string): string {
   const pattern = new RegExp(`"${field}"\\s*:\\s*(${JSON_NUMBER})`);
   const match = pattern.exec(line);
@@ -106,8 +110,9 @@ export async function verifyPrecision(input: VerifyPrecisionInput): Promise<Prec
     throw new Error(`Precision metadata tick count does not match Source Snapshot: metadata=${upstreamTickCount} source=${audit.tick_count}`);
   }
 
-  const compressed = await readFile(snapshotPath);
-  const text = gunzipSync(compressed).toString('utf8');
+  const compressed = toOwnedBytes(await readFile(snapshotPath));
+  const decompressed = toOwnedBytes(gunzipSync(compressed));
+  const text = new TextDecoder('utf-8').decode(decompressed);
   const lines = text.length === 0 ? [] : text.trimEnd().split('\n');
   if (lines.length !== audit.tick_count) {
     throw new Error(`Snapshot line count does not match daily audit: lines=${lines.length} audit=${audit.tick_count}`);
