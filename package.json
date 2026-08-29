@@ -11,7 +11,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node dist/scripts/run-unit-tests.js",
     "hdh": "node dist/src/cli.js",
-    "precision": "node dist/src/precision-cli.js"
+    "precision": "node dist/src/precision-cli.js",
+    "canonical": "node dist/src/canonical-cli.js"
   },
   "dependencies": {
     "dukascopy-node": "1.50.0"
