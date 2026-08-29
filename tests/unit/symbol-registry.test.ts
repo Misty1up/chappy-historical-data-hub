@@ -61,7 +61,9 @@ test('disabled or unknown symbol cannot be resolved', async () => {
 });
 
 test('UNVERIFIED precision cannot carry guessed digits or scale', async () => {
-  const invalid = structuredClone(valid);
+  const invalid = structuredClone(valid) as unknown as {
+    symbols: Array<Record<string, unknown>>;
+  };
   invalid.symbols[0]!.price_digits = 5;
   invalid.symbols[0]!.price_scale = 100000;
   await withRegistry(invalid, async path => {
