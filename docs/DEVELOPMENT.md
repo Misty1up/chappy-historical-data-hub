@@ -47,9 +47,9 @@ R08 formally accepted:
 - EURUSD: `price_digits=5`, `price_scale=100000`.
 - XAUUSD: `price_digits=3`, `price_scale=1000`.
 
-## Phase 2 Canonical core gate
+## Phase 2 Canonical core
 
-The Canonical core converts a PASS Source Tick Snapshot to strict in-memory Canonical rows and writes evidence only. It does not yet create Parquet.
+The Canonical core converts a PASS Source Tick Snapshot to strict in-memory Canonical rows and writes logical evidence.
 
 ```bash
 npm run canonical -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-canonical
@@ -61,7 +61,7 @@ The output directory contains:
 - `canonical.log`
 - `repro_command.txt`
 
-A local Canonical core PASS requires:
+A Canonical core PASS requires:
 
 - the source snapshot SHA matches the Phase 1 audit;
 - `source_row_count == canonical_row_count`;
@@ -70,25 +70,62 @@ A local Canonical core PASS requires:
 - no dedupe or gap fill;
 - repeated conversion of identical Source Snapshot bytes yields the same `logical_row_sha256`.
 
-R09 is the first real-data gate for this Canonical core. Its repository target SHA is frozen by the associated Exchange packet, not by this document.
+R09 accepted the real-data reference logical hashes for 2026-01-05 UTC:
 
-## Parquet writer compatibility spike
+- EURUSD: `cd96d7cc9fe2380e51a8bec9793cb39bcdf65f463fbecc0074601e41b76c1c83`.
+- XAUUSD: `9824df2fe6f6fa9367ef95e0bdc79bfe4c6259dfc47d62028800cad853e27d47`.
 
-Do not install a Parquet writer into this repository until the separate compatibility gate is accepted. Candidate writers must be tested in an isolated temporary directory outside the repository with exact version pins.
+## Production Canonical Parquet
 
-The compatibility gate must prove at least:
+R09 accepted the production format profile:
 
-- signed INT64 / BigInt round-trip;
-- nullable DOUBLE round-trip;
-- row-order preservation including duplicate rows and same timestamps;
-- schema and row-count readback using the paired independent reader path;
-- repeat-write physical SHA behavior under fixed options;
-- no repository/package-lock mutation during the spike.
+- writer: `hyparquet-writer@0.16.8` exact;
+- readback verifier: `hyparquet@1.29.2` exact;
+- profile: `HDH_CANONICAL_SNAPPY_V1`;
+- codec: SNAPPY;
+- statistics: false;
+- row group size: 100000;
+- explicit schema/type declarations;
+- dynamic timestamp metadata forbidden.
 
-Only after the spike is formally accepted may a writer dependency be added and the physical Parquet writer be implemented.
+After the lockfile containing these exact dependencies is locally generated and committed, the production command is:
+
+```bash
+npm run parquet -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-parquet
+```
+
+The physical partition is:
+
+`canonical/<symbol>/YYYY/MM/YYYY-MM-DD.parquet`
+
+The writer does not promote a candidate file merely because serialization succeeded. It writes to a same-directory temporary path and requires independent `hyparquet` readback to pass:
+
+- row count;
+- exact physical schema;
+- exact row order and all values;
+- nullable volume positions;
+- recomputed writer-independent Canonical logical row hash.
+
+Only after these checks pass is the physical SHA-256 computed and the temporary file atomically renamed to the final partition path. A pre-existing final file is treated as a resume candidate and must reverify against the current Canonical rows; it is never silently overwritten.
+
+`parquet_evidence.json` records both the writer-independent logical hash and the physical Parquet SHA. These identities must remain separate.
+
+## R10 local production gate
+
+The first production market-data Parquet acceptance is a local-only gate. It must:
+
+1. generate the new exact package-lock for the accepted writer/reader pins without source edits;
+2. pass typecheck/unit/build with the resulting lock;
+3. reproduce the R09 EURUSD/XAUUSD Source and Canonical logical hashes;
+4. generate one UTC-day SNAPPY Parquet for both symbols;
+5. independently read back each file and reproduce the same Canonical logical hash;
+6. rerun in the same output directory and prove resume verification with unchanged physical SHA;
+7. generate again in a fresh output directory and prove actual-market-data physical SHA determinism under the fixed profile.
+
+The Parquet files and Source Tick Snapshots remain local and are not submitted to Drive. Only evidence, hashes, sizes, logs, and the generated package-lock are exchanged.
 
 ## Governance
 
 Implement changes on a dedicated branch and merge only after reviewing the diff and test evidence. Large market data, caches, logs, run artifacts, secrets, broker information and personal paths must never be committed.
 
-Current Phase 2 remains blocked from MT5 derivative, Web UI, MCP and AI Router work until the Canonical Packet gate is complete.
+Current Phase 2 remains blocked from MT5 derivative, Web UI, MCP and AI Router work until R10, the returned package-lock inspection, GitHub CI, and the Phase 2 closeout audit are complete.
