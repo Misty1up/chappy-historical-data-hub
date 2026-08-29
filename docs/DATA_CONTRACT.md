@@ -37,7 +37,7 @@ A daily audit records tick count, timestamp bounds, duplicate/same-timestamp cou
 
 ## Phase 2 precision guard
 
-`price_digits` and `price_scale` are never guessed. A symbol with `precision_status != VERIFIED` cannot be promoted to Canonical Parquet or an MT5 derivative.
+`price_digits` and `price_scale` are never guessed. A symbol with `precision_status != VERIFIED` cannot be promoted to Canonical output or an MT5 derivative.
 
 The pinned `dukascopy-node@1.50.0` decoder derives its output price formatting from the upstream JSON response `multiplier`. Phase 2 therefore performs a separate precision probe against the same public Dukascopy JSON API and stores only multiplier-related metadata and response hashes; raw transport bodies are discarded.
 
@@ -50,11 +50,16 @@ The precision gate requires all of the following for a PASS Source Tick day:
 5. the decoder-derived decimal scale converts every lexical Bid and Ask value to an integer exactly, with no tolerance or rounding;
 6. accepted independent cross-adapter findings contain no blocking difference.
 
-The probe does **not** automatically edit `symbol_registry.json`. Human/ChatGPT review of local Evidence is required before `precision_status`, `price_digits`, or `price_scale` are promoted.
+R08 formally accepted the following precision values from actual Primary Dukascopy multiplier evidence:
 
-## Canonical Tick target schema v0.1
+- EURUSD: multiplier `1.0E-5`, `price_digits=5`, `price_scale=100000`.
+- XAUUSD: multiplier `0.001`, `price_digits=3`, `price_scale=1000`.
 
-Once precision is VERIFIED, the target logical row is:
+The Secondary Adapter's historical 100x XAUUSD unit difference is audit context only and is not precision authority.
+
+## Canonical Tick schema v0.1
+
+For a VERIFIED symbol, the logical row is:
 
 - `timestamp_msc`: int64 UTC epoch milliseconds;
 - `source_seq`: source-order integer;
@@ -65,8 +70,24 @@ Once precision is VERIFIED, the target logical row is:
 - `bid_volume`: nullable float64;
 - `ask_volume`: nullable float64.
 
-`bid_scaled` and `ask_scaled` are the strict parity basis. They must be generated from the persisted decimal lexical representation without silent rounding.
+`bid_scaled` and `ask_scaled` are the strict parity basis. They are generated directly from the persisted Source Snapshot JSON number lexemes using exact decimal arithmetic. Conversion fails if a value is off the verified lattice; there is no tolerance and no silent rounding.
+
+Canonical conversion also rechecks the Source Snapshot SHA-256, expected row count, UTC-day timestamp range, non-negative source sequence continuity, finite positive Bid/Ask, and non-negative spread.
 
 Canonical generation must preserve source row count, source order, exact duplicates, same-timestamp multi-ticks, Bid/Ask semantics, and nullable volume semantics.
 
-Canonical Parquet production remains blocked until the precision gate is formally accepted for the symbol.
+## Canonical logical row hash
+
+Physical Parquet bytes are not the logical identity because writer metadata, encoding, compression, or row-group layout may change physical SHA-256 without changing data semantics.
+
+The canonical logical row hash is therefore computed before Parquet writing from an ordered UTF-8 stream containing, per row:
+
+`timestamp_msc|bid_scaled|ask_scaled|bid_volume|ask_volume|source_seq\n`
+
+Volumes are serialized as deterministic finite JavaScript number strings or the literal `null`. Bid/Ask float columns are semantically covered by the scaled integer values plus the symbol `price_scale` recorded in evidence/manifest.
+
+A Canonical core PASS requires source row count == canonical row count and a reproducible `logical_row_sha256` across repeated conversion of the same Source Snapshot bytes.
+
+## Parquet gate
+
+Canonical **core** conversion is now allowed for EURUSD and XAUUSD. Canonical **Parquet production** is still blocked until a writer compatibility spike proves all required properties: signed INT64/BigInt fidelity, nullable DOUBLE fidelity, row order preservation, independent readback, and acceptable byte-level determinism behavior under a fixed exact writer version and options.
