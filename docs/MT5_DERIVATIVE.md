@@ -51,7 +51,7 @@ The mapping is:
 
 Dukascopy Canonical keeps separate Bid-side and Ask-side volumes. MqlTick exposes a single volume channel, so P2.4 does **not** invent a lossy merge rule. Both Canonical volume fields remain authoritative in Canonical data and are deliberately unmapped in this derivative.
 
-The helper expects the target Custom Symbol to exist and its Digits to match the derivative contract. It verifies the CSV header, `source_seq`, nondecreasing `time_msc`, positive Bid/Ask and returned `CustomTicksReplace` count.
+The helper refuses to modify a non-custom symbol. With `InpCreateIfMissing=true`, it may create only the named Custom Symbol, then explicitly applies and verifies the expected `SYMBOL_DIGITS` and `SYMBOL_POINT`. After `CustomTicksReplace`, it calls `CopyTicksRange` and compares every returned row against the input MqlTick array for row count, `time_msc`, Bid and Ask. The first divergence is reported; a count or semantic mismatch is a FAIL.
 
 ## Day contract and evidence
 
@@ -72,4 +72,12 @@ The static microcase must prove:
 - no synthetic spread-only reconstruction;
 - no implicit Bid/Ask volume merge.
 
-Actual MT5 compilation/import/readback remains a local verification task after the GitHub implementation gate passes.
+The local MT5 gate must additionally prove:
+
+- the repository helper compiles in MetaEditor without errors;
+- the target is a Custom Symbol with expected Digits/Point;
+- `CustomTicksReplace` returns the complete expected count;
+- `CopyTicksRange` returns the same complete count;
+- all `time_msc`, Bid and Ask values read back row-by-row exactly, including same-timestamp order.
+
+Only after both GitHub static CI and the local MT5 gate pass may P2.4 be formally accepted.
