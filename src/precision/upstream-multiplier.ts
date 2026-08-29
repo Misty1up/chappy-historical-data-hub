@@ -47,6 +47,35 @@ function parseUtcDate(dateUtc: string): { year: number; month: number; day: numb
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 }
 
+export function parseMultiplierPayload(text: string, hour: number): {
+  tickDeltaCount: number;
+  multiplierRaw: string | null;
+  multiplierParsed: number | null;
+} {
+  const parsed = JSON.parse(text) as { times?: unknown; multiplier?: unknown };
+  if (!Array.isArray(parsed.times)) throw new Error(`Upstream precision payload missing times[] for hour ${hour}`);
+
+  const match = MULTIPLIER_PATTERN.exec(text);
+  const multiplierRaw = match?.[1] ?? null;
+  if (multiplierRaw === null) {
+    if (parsed.times.length > 0) throw new Error(`Non-empty upstream precision payload missing multiplier for hour ${hour}`);
+    if (parsed.multiplier !== undefined && parsed.multiplier !== null) {
+      throw new Error(`Multiplier exists in parsed payload but raw numeric token was not recoverable for hour ${hour}`);
+    }
+    return { tickDeltaCount: parsed.times.length, multiplierRaw: null, multiplierParsed: null };
+  }
+
+  if (typeof parsed.multiplier !== 'number' || !Number.isFinite(parsed.multiplier) || parsed.multiplier <= 0) {
+    throw new Error(`Parsed upstream multiplier is not a positive finite number for hour ${hour}`);
+  }
+  const fromRaw = Number(multiplierRaw);
+  if (!Number.isFinite(fromRaw) || fromRaw <= 0 || fromRaw !== parsed.multiplier) {
+    throw new Error(`Raw/parsed upstream multiplier mismatch for hour ${hour}`);
+  }
+
+  return { tickDeltaCount: parsed.times.length, multiplierRaw, multiplierParsed: parsed.multiplier };
+}
+
 async function fetchTextWithProjectRetry(url: string): Promise<{ status: number; text: string }> {
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= PROJECT_DEFAULT_MAX_ATTEMPTS; attempt += 1) {
@@ -73,11 +102,8 @@ export async function probeUtcDayMultipliers(
   for (let hour = 0; hour < 24; hour += 1) {
     const endpointPath = `/ticks/${symbol.source_api_code}/${year}/${month}/${day}/${hour}`;
     const { status, text } = await fetchTextWithProjectRetry(`${DUKASCOPY_DATA_API_ROOT}${endpointPath}`);
-    const parsed = JSON.parse(text) as { times?: unknown; multiplier?: unknown };
-    if (!Array.isArray(parsed.times)) throw new Error(`Upstream precision payload missing times[] for hour ${hour}`);
-
-    const match = MULTIPLIER_PATTERN.exec(text);
-    const multiplierRaw = match?.[1] ?? null;
+    const payload = parseMultiplierPayload(text, hour);
+    const multiplierRaw = payload.multiplierRaw;
     let multiplierNumberString: string | null = null;
     let multiplierNormalizedKey: string | null = null;
     let decoderPriceDigits: number | null = null;
@@ -89,8 +115,6 @@ export async function probeUtcDayMultipliers(
       multiplierNormalizedKey = normalizedDecimalKey(multiplierNumberString);
       decoderPriceDigits = derived.priceDigits;
       decoderPriceScale = derived.priceScale;
-    } else if (parsed.times.length > 0) {
-      throw new Error(`Non-empty upstream precision payload missing multiplier for hour ${hour}`);
     }
 
     observations.push({
@@ -98,7 +122,7 @@ export async function probeUtcDayMultipliers(
       endpoint_path: endpointPath,
       http_status: status,
       response_sha256: sha256Text(text),
-      response_tick_delta_count: parsed.times.length,
+      response_tick_delta_count: payload.tickDeltaCount,
       multiplier_raw: multiplierRaw,
       multiplier_number_string: multiplierNumberString,
       multiplier_normalized_key: multiplierNormalizedKey,
