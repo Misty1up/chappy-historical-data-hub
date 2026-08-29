@@ -1,31 +1,35 @@
 {
-  "schema_version": "0.1.0",
+  "schema_version": "0.2.0",
   "symbols": [
     {
       "canonical_symbol": "EURUSD",
       "enabled": true,
       "source_adapter_id": "dukascopy-node",
       "source_instrument": "eurusd",
+      "source_api_code": "EUR-USD",
+      "source_api_code_provenance": "dukascopy-node v1.50.0 generated instrument metadata (blob 94a2e11e026e9e9aeddac1f7c76bd7b7afe5ac77)",
       "source_feed_type": "tick",
       "source_start_hint_utc": "2003-05-04T00:00:00.000Z",
       "source_start_hint_provenance": "Dukascopy HistoryStart/instrument matrix",
       "source_start_hint_status": "REFERENCE_ONLY",
-      "precision_status": "UNVERIFIED",
-      "price_digits": null,
-      "price_scale": null
+      "precision_status": "VERIFIED",
+      "price_digits": 5,
+      "price_scale": 100000
     },
     {
       "canonical_symbol": "XAUUSD",
       "enabled": true,
       "source_adapter_id": "dukascopy-node",
       "source_instrument": "xauusd",
+      "source_api_code": "XAU-USD",
+      "source_api_code_provenance": "dukascopy-node v1.50.0 generated instrument metadata (blob 94a2e11e026e9e9aeddac1f7c76bd7b7afe5ac77)",
       "source_feed_type": "tick",
       "source_start_hint_utc": "2003-05-05T00:00:00.000Z",
       "source_start_hint_provenance": "Dukascopy HistoryStart/instrument matrix",
       "source_start_hint_status": "REFERENCE_ONLY",
-      "precision_status": "UNVERIFIED",
-      "price_digits": null,
-      "price_scale": null
+      "precision_status": "VERIFIED",
+      "price_digits": 3,
+      "price_scale": 1000
     }
   ]
 }

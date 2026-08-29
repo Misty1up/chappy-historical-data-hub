@@ -1,6 +1,6 @@
-# Phase 1 Data Contract
+# Historical Data Hub Data Contract
 
-## Source boundary
+## Phase 1 Source boundary
 
 The Phase 1 persisted **Source Tick Snapshot** is the immutable research-input representation produced after `dukascopy-node@1.50.0` deterministically decodes the Dukascopy feed response. It is not a claim that provider transport bytes such as BI5/JSON response bodies are persisted byte-for-byte.
 
@@ -29,12 +29,98 @@ Path:
 
 Each JSONL record is serialized from SourceTick without project-side price rounding. Snapshot gzip generation is deterministic so repeated serialization of identical SourceTick content yields identical bytes and SHA-256.
 
-## Audit
+## Phase 1 audit
 
 A daily audit records tick count, timestamp bounds, duplicate/same-timestamp counts, out-of-order count, invalid-price count, negative-spread count, snapshot SHA-256 and status.
 
 `PASS` means the Source Tick snapshot passed Phase 1 acquisition integrity checks. It does not mean the data is approved as Canonical or MT5-ready.
 
-## Precision guard
+## Phase 2 precision guard
 
-`price_digits` and `price_scale` are not guessed. A symbol with `precision_status != VERIFIED` cannot be promoted to later Canonical/MT5 stages.
+`price_digits` and `price_scale` are never guessed. A symbol with `precision_status != VERIFIED` cannot be promoted to Canonical output or an MT5 derivative.
+
+The pinned `dukascopy-node@1.50.0` decoder derives its output price formatting from the upstream JSON response `multiplier`. Phase 2 therefore performs a separate precision probe against the same public Dukascopy JSON API and stores only multiplier-related metadata and response hashes; raw transport bodies are discarded.
+
+The precision gate requires all of the following for a PASS Source Tick day:
+
+1. exactly one normalized multiplier across non-empty hourly responses;
+2. the summed upstream hourly tick-delta count equals the Source Snapshot tick count;
+3. the Source Snapshot SHA-256 still equals its Phase 1 daily audit;
+4. source order remains exactly `source_seq=0..N-1`;
+5. the decoder-derived decimal scale converts every lexical Bid and Ask value to an integer exactly, with no tolerance or rounding;
+6. accepted independent cross-adapter findings contain no blocking difference.
+
+R08 formally accepted the following precision values from actual Primary Dukascopy multiplier evidence:
+
+- EURUSD: multiplier `1.0E-5`, `price_digits=5`, `price_scale=100000`.
+- XAUUSD: multiplier `0.001`, `price_digits=3`, `price_scale=1000`.
+
+The Secondary Adapter's historical 100x XAUUSD unit difference is audit context only and is not precision authority.
+
+## Canonical Tick schema v0.1
+
+For a VERIFIED symbol, the logical row is:
+
+- `timestamp_msc`: int64 UTC epoch milliseconds;
+- `source_seq`: source-order integer;
+- `bid`: float64;
+- `ask`: float64;
+- `bid_scaled`: int64 strict decimal representation;
+- `ask_scaled`: int64 strict decimal representation;
+- `bid_volume`: nullable float64;
+- `ask_volume`: nullable float64.
+
+`bid_scaled` and `ask_scaled` are the strict parity basis. They are generated directly from the persisted Source Snapshot JSON number lexemes using exact decimal arithmetic. Conversion fails if a value is off the verified lattice; there is no tolerance and no silent rounding.
+
+Canonical conversion also rechecks the Source Snapshot SHA-256, expected row count, UTC-day timestamp range, non-negative source sequence continuity, finite positive Bid/Ask, and non-negative spread.
+
+Canonical generation must preserve source row count, source order, exact duplicates, same-timestamp multi-ticks, Bid/Ask semantics, and nullable volume semantics.
+
+## Canonical logical row hash
+
+Physical Parquet bytes are not the logical identity because writer metadata, encoding, compression, or row-group layout may change physical SHA-256 without changing data semantics.
+
+The canonical logical row hash is therefore computed before Parquet writing from an ordered UTF-8 stream containing, per row:
+
+`timestamp_msc|bid_scaled|ask_scaled|bid_volume|ask_volume|source_seq\n`
+
+Volumes are serialized as deterministic finite JavaScript number strings or the literal `null`. Bid/Ask float columns are semantically covered by the scaled integer values plus the symbol `price_scale` recorded in evidence/manifest.
+
+A Canonical core PASS requires source row count == canonical row count and a reproducible `logical_row_sha256` across repeated conversion of the same Source Snapshot bytes.
+
+R09 accepted reference logical hashes for the 2026-01-05 UTC verification window:
+
+- EURUSD: `cd96d7cc9fe2380e51a8bec9793cb39bcdf65f463fbecc0074601e41b76c1c83`.
+- XAUUSD: `9824df2fe6f6fa9367ef95e0bdc79bfe4c6259dfc47d62028800cad853e27d47`.
+
+## Production Canonical Parquet contract
+
+R09 accepted `hyparquet-writer@0.16.8` for writing and `hyparquet@1.29.2` for independent semantic/schema readback. Both packages are exact-pinned.
+
+The production writer profile is fixed as:
+
+- profile id: `HDH_CANONICAL_SNAPPY_V1`;
+- codec: `SNAPPY`;
+- statistics: `false`;
+- row group size: `100000` rows;
+- explicit column types; no type inference;
+- dynamic timestamp metadata: forbidden.
+
+Physical schema/order is fixed to:
+
+1. `timestamp_msc` — REQUIRED INT64;
+2. `source_seq` — REQUIRED INT32;
+3. `bid` — REQUIRED DOUBLE;
+4. `ask` — REQUIRED DOUBLE;
+5. `bid_scaled` — REQUIRED INT64;
+6. `ask_scaled` — REQUIRED INT64;
+7. `bid_volume` — OPTIONAL DOUBLE;
+8. `ask_volume` — OPTIONAL DOUBLE.
+
+Partition path remains:
+
+`canonical/<symbol>/YYYY/MM/YYYY-MM-DD.parquet`
+
+A candidate file is first written to a temporary path in the same directory. Before promotion it must pass independent Parquet readback for row count, exact schema, all row values/order, nullable volume positions, and recomputed logical row SHA-256. Only after readback PASS is the physical SHA-256 computed and the temporary file atomically renamed to its final partition path. If a final file already exists, it is treated as a resume candidate and must independently reverify against the current Canonical rows; a conflicting existing file is never silently overwritten.
+
+Physical Parquet SHA-256 and Canonical logical row SHA-256 remain separate evidence fields. Production market-data Parquet is not considered formally accepted until the local R10 one-day market-data Gate passes for EURUSD and XAUUSD.

@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/precision_evidence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "symbol", "source_adapter", "source_adapter_version",
+    "source_metadata_provenance", "source_metadata_hash", "observed_tick_window",
+    "observed_tick_count", "upstream_tick_delta_count", "upstream_multiplier",
+    "observed_decimal_lattice_summary", "candidate_price_digits", "candidate_price_scale",
+    "bid_scaled_conversion_fail_count", "ask_scaled_conversion_fail_count",
+    "exact_lattice_pass", "cross_adapter_findings", "cross_adapter_reference_sha256",
+    "precision_status", "verification_reason", "verifier_git_commit"
+  ],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9._-]+$"},
+    "source_adapter": {"const": "dukascopy-node"},
+    "source_adapter_version": {"const": "1.50.0"},
+    "source_metadata_provenance": {"type": "string", "minLength": 1},
+    "source_metadata_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "observed_tick_window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["date_utc", "source_snapshot_sha256", "source_daily_audit_status"],
+      "properties": {
+        "date_utc": {"type": "string", "format": "date"},
+        "source_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "source_daily_audit_status": {"const": "PASS"}
+      }
+    },
+    "observed_tick_count": {"type": "integer", "minimum": 1},
+    "upstream_tick_delta_count": {"type": "integer", "minimum": 1},
+    "upstream_multiplier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "normalized_key", "data_hour_count", "observation_hash", "observations"],
+      "properties": {
+        "raw": {"type": "string", "minLength": 1},
+        "normalized_key": {"type": "string", "minLength": 1},
+        "data_hour_count": {"type": "integer", "minimum": 1, "maximum": 24},
+        "observation_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "observations": {
+          "type": "array",
+          "minItems": 24,
+          "maxItems": 24,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["hour_utc", "endpoint_path", "http_status", "response_sha256", "response_tick_delta_count", "multiplier_raw", "multiplier_number_string", "multiplier_normalized_key", "decoder_price_digits", "decoder_price_scale"],
+            "properties": {
+              "hour_utc": {"type": "integer", "minimum": 0, "maximum": 23},
+              "endpoint_path": {"type": "string", "minLength": 1},
+              "http_status": {"type": "integer", "minimum": 100, "maximum": 599},
+              "response_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+              "response_tick_delta_count": {"type": "integer", "minimum": 0},
+              "multiplier_raw": {"type": ["string", "null"]},
+              "multiplier_number_string": {"type": ["string", "null"]},
+              "multiplier_normalized_key": {"type": ["string", "null"]},
+              "decoder_price_digits": {"type": ["integer", "null"], "minimum": 0},
+              "decoder_price_scale": {"type": ["integer", "null"], "minimum": 1}
+            }
+          }
+        }
+      }
+    },
+    "observed_decimal_lattice_summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_bid_decimal_places", "max_ask_decimal_places", "minimum_positive_bid_delta_scaled", "minimum_positive_ask_delta_scaled"],
+      "properties": {
+        "max_bid_decimal_places": {"type": "integer", "minimum": 0},
+        "max_ask_decimal_places": {"type": "integer", "minimum": 0},
+        "minimum_positive_bid_delta_scaled": {"type": ["string", "null"], "pattern": "^[0-9]+$"},
+        "minimum_positive_ask_delta_scaled": {"type": ["string", "null"], "pattern": "^[0-9]+$"}
+      }
+    },
+    "candidate_price_digits": {"type": "integer", "minimum": 0},
+    "candidate_price_scale": {"type": "integer", "minimum": 1},
+    "bid_scaled_conversion_fail_count": {"type": "integer", "minimum": 0},
+    "ask_scaled_conversion_fail_count": {"type": "integer", "minimum": 0},
+    "exact_lattice_pass": {"type": "boolean"},
+    "cross_adapter_findings": {"type": "object"},
+    "cross_adapter_reference_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "precision_status": {"enum": ["VERIFIED", "UNVERIFIED"]},
+    "verification_reason": {"type": "string", "minLength": 1},
+    "verifier_git_commit": {"type": "string", "minLength": 1}
+  }
+}

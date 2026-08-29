@@ -17,12 +17,14 @@ async function withRegistry(value: unknown, fn: (path: string) => Promise<void>)
 }
 
 const valid = {
-  schema_version: '0.1.0',
+  schema_version: '0.2.0',
   symbols: [{
     canonical_symbol: 'EURUSD',
     enabled: true,
     source_adapter_id: 'dukascopy-node',
     source_instrument: 'eurusd',
+    source_api_code: 'EUR-USD',
+    source_api_code_provenance: 'fixture',
     source_feed_type: 'tick',
     source_start_hint_utc: '2003-05-04T00:00:00.000Z',
     source_start_hint_provenance: 'fixture',
@@ -37,6 +39,7 @@ test('valid registry loads and symbol resolution is case-insensitive at CLI boun
   await withRegistry(valid, async path => {
     const registry = await loadSymbolRegistry(path);
     assert.equal(resolveSymbol(registry, 'eurusd').source_instrument, 'eurusd');
+    assert.equal(resolveSymbol(registry, 'eurusd').source_api_code, 'EUR-USD');
   });
 });
 
@@ -54,5 +57,16 @@ test('disabled or unknown symbol cannot be resolved', async () => {
   await withRegistry(disabled, async path => {
     const registry = await loadSymbolRegistry(path);
     assert.throws(() => resolveSymbol(registry, 'EURUSD'), /not enabled/);
+  });
+});
+
+test('UNVERIFIED precision cannot carry guessed digits or scale', async () => {
+  const invalid = structuredClone(valid) as unknown as {
+    symbols: Array<Record<string, unknown>>;
+  };
+  invalid.symbols[0]!.price_digits = 5;
+  invalid.symbols[0]!.price_scale = 100000;
+  await withRegistry(invalid, async path => {
+    await assert.rejects(() => loadSymbolRegistry(path), /UNVERIFIED precision requires null/);
   });
 });

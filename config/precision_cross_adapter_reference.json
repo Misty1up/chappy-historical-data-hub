@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1.0",
+  "authority": {
+    "task_id": "TASK_HDH_PHASE1_CLOSEOUT_AUDIT_20260828_R06",
+    "primary": "dukascopy-node@1.50.0",
+    "secondary": "cpcerrato/dukascopy-downloader@v0.1.4-beta.1",
+    "date_utc": "2026-01-05",
+    "accepted_archive_folder": "1pM0HLqcZ4DuofGhlEi-e_kLn-vwYBoOs"
+  },
+  "symbols": {
+    "EURUSD": {
+      "assessment": "EXPLAINED_DIFFERENCE",
+      "tick_count": 65395,
+      "timestamp_match_rate": 1,
+      "price_relation": "PRIMARY_BID_ASK_EQUALS_SECONDARY_BID_ASK",
+      "price_relation_exact_rate": 1,
+      "volume_relation": "SECONDARY_EQUALS_FLOAT32(PRIMARY_UNITS_DIV_1000000)",
+      "blocking_difference": false
+    },
+    "XAUUSD": {
+      "assessment": "EXPLAINED_DIFFERENCE",
+      "tick_count": 404125,
+      "timestamp_match_rate": 1,
+      "price_relation": "PRIMARY_BID_ASK_EQUALS_SECONDARY_BID_ASK_TIMES_100",
+      "price_relation_exact_rate": 1,
+      "price_relation_note": "Secondary BI5 decoder uses a fixed 100000 divisor. This relation is audit evidence only and is not Canonical price-scale authority.",
+      "volume_relation": "SECONDARY_EQUALS_FLOAT32(PRIMARY_UNITS_DIV_1000000)",
+      "blocking_difference": false
+    }
+  }
+}

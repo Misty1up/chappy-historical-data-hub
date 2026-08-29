@@ -6,6 +6,8 @@ export interface SymbolRegistryEntry {
   enabled: boolean;
   source_adapter_id: 'dukascopy-node';
   source_instrument: string;
+  source_api_code: string;
+  source_api_code_provenance: string;
   source_feed_type: 'tick';
   source_start_hint_utc: string;
   source_start_hint_provenance: string;
