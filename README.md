@@ -4,26 +4,30 @@ Canonical Dukascopy historical tick data hub for reproducible Numba/MT5 parity r
 
 ## Current phase
 
-**Phase 1 — Acquisition Core (implementation under review)**
+**Phase 2 — P2.4 MT5 Tick Derivative**
 
-The current branch is intentionally CLI-first. It acquires Dukascopy tick data into auditable daily Source Tick snapshots without dedupe, gap fill, price rounding, MT5 conversion, or strategy logic.
+Phase 1 Acquisition Core is complete. The accepted Phase 2 precision / Canonical scaled-int / production Parquet foundation is merged to `main`. The remaining frozen Phase 2 sequence is:
 
-## Core contract
+1. P2.4 MT5 Tick Derivative;
+2. P2.5 Dataset Packet / Manifest / Hash Audit.
 
-- UTC calendar-day acquisition units.
-- Preserve Bid and Ask separately.
-- Preserve Bid/Ask volume; missing volume remains `null`.
-- Preserve original source order with `source_seq`.
-- Same-timestamp and exact duplicate ticks are audited, not deleted.
-- Daily snapshots are deterministic `.jsonl.gz` with SHA-256 evidence.
-- Resume is allowed only when the previous PASS snapshot still matches its recorded SHA-256.
-- Project-side retry defaults to four attempts with exponential backoff and bounded jitter; the upstream library retry is disabled.
-- `precision_status=UNVERIFIED` permits acquisition/audit only. It does **not** permit Canonical or MT5 promotion.
-- Phase 1 manifests always keep `canonical_promotion_allowed=false`; promotion belongs to the later Canonical Packet Builder.
+Phase 3 Web MVP does not start until both remaining Phase 2 gates are accepted.
 
-## Installation
+## Core invariants
 
-Node.js 18+ is required. `dukascopy-node` is pinned to exactly `1.50.0` and the verified dependency graph is committed in `package-lock.json`.
+- UTC calendar-day acquisition and partitioning.
+- Bid and Ask remain separate.
+- Canonical Bid/Ask volumes remain separate; missing volume remains `null`.
+- Original source order is preserved by `source_seq`.
+- Same-timestamp and exact duplicate ticks are preserved.
+- No silent sorting, dedupe, gap fill or price rounding.
+- `bid_scaled` / `ask_scaled` are strict parity fields.
+- Canonical Parquet uses exact-pinned `hyparquet-writer@0.16.8` and independent `hyparquet@1.29.2` readback under `HDH_CANONICAL_SNAPPY_V1`.
+- MT5 artifacts are derivatives of Canonical rows only; they are never a second research master.
+
+## Installation and static gate
+
+Node.js 18+ is required.
 
 ```bash
 npm ci
@@ -32,68 +36,46 @@ npm test
 npm run build
 ```
 
-## Acquire
+CI runs the same locked gate on Node 18, 20, 22 and 24.
+
+## Main CLIs
+
+Acquire Source Tick data:
 
 ```bash
-npm run build
-npm run hdh -- acquire \
-  --symbol XAUUSD \
-  --from 2026-01-01 \
-  --to 2026-01-08 \
-  --out ./runs/xauusd-smoke
+npm run hdh -- acquire --symbol EURUSD --from 2026-01-05 --to 2026-01-06 --out ./runs/eurusd-source
 ```
 
-`--from` is inclusive UTC 00:00; `--to` is exclusive UTC 00:00. `--out` must resolve inside the current working directory so local personal paths are not written into evidence.
-
-Optional acquisition controls:
-
-```text
---batch-size <integer>       default 10
---batch-pause-ms <integer>   default 1000
---max-attempts <integer>     default 4
---force                      reacquire instead of hash-verified resume
-```
-
-## Verify a run
+Precision evidence:
 
 ```bash
-npm run hdh -- status --run ./runs/xauusd-smoke
-npm run hdh -- verify --run ./runs/xauusd-smoke
-npm run hdh -- rehash --run ./runs/xauusd-smoke
+npm run precision -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-precision
 ```
 
-## Run output
+Canonical logical evidence:
 
-```text
-<out>/
-├─ job_config.json
-├─ source_adapter.json
-├─ symbol_registry_snapshot.json
-├─ source_ticks/
-│  └─ dukascopy-node/<SYMBOL>/YYYY/MM/YYYY-MM-DD.jsonl.gz
-├─ integrity/
-│  ├─ daily_audit.jsonl
-│  └─ gap_and_failure_report.csv
-├─ run.log
-├─ repro_command.txt
-├─ SHA256SUMS.txt
-└─ manifest.json
+```bash
+npm run canonical -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-canonical
 ```
 
-The manifest records runtime, OS, batch/retry settings, PASS/WARN/EMPTY/FAIL counts, source file count, first/last tick, daily source hashes, a deterministic source hash root, and overall integrity status.
+Production Canonical Parquet:
 
-## CI
-
-Pull requests and pushes to `main` run the locked static gate on Node.js 18, 20, 22 and 24:
-
-```text
-npm ci -> typecheck -> unit tests -> build
+```bash
+npm run parquet -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-parquet
 ```
 
-External Dukascopy network smoke is kept out of automatic CI; accepted local Evidence remains the source for network acquisition verification.
+P2.4 MT5 derivative:
 
-## Not in Phase 1
+```bash
+npm run mt5 -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-mt5
+```
 
-The following are deliberately deferred: Canonical Parquet, MT5 Custom Symbol CSV, GitHub Pages UI, long-run GitHub Actions acquisition, MCP, Regime detection, AI Router, and portfolio control.
+See `docs/MT5_DERIVATIVE.md` for the fixed derivative mapping and `mt5/HDH_CustomTicksReplace_Import.mq5` for the formal local `MqlTick` / `CustomTicksReplace` import helper baseline.
 
-Large market datasets, caches, run artifacts, credentials, broker information, EA/MQL5 logic, and IB research logic must never be committed to this public repository.
+## Data location rule
+
+Large market datasets, Source Snapshots, generated Parquet, MT5 derivative files, caches, run artifacts, credentials, broker information, EA/MQL5 strategy logic and IB research logic must never be committed to this public repository. The local PC remains authoritative for actual market-data payloads.
+
+## Not unlocked yet
+
+P2.5 Dataset Packet / Manifest / Hash Audit, Phase 3 Web MVP, MCP, Regime detection, AI Router and portfolio control remain blocked until their preceding gates are formally accepted.

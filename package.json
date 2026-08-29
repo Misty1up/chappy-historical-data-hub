@@ -13,7 +13,8 @@
     "hdh": "node dist/src/cli.js",
     "precision": "node dist/src/precision-cli.js",
     "canonical": "node dist/src/canonical-cli.js",
-    "parquet": "node dist/src/parquet-cli.js"
+    "parquet": "node dist/src/parquet-cli.js",
+    "mt5": "node dist/src/mt5-cli.js"
   },
   "dependencies": {
     "dukascopy-node": "1.50.0",
