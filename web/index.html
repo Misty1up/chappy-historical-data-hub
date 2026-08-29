@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHAPPY Historical Data Hub</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">PHASE 3 WEB MVP</p>
+        <h1>CHAPPY Historical Data Hub</h1>
+        <p class="lede">Build a validated job request without changing Canonical dataset authority.</p>
+      </div>
+      <span class="badge">Control plane only</span>
+    </header>
+
+    <section class="panel" aria-labelledby="job-title">
+      <div class="section-heading">
+        <div>
+          <p class="step">STEP 1</p>
+          <h2 id="job-title">Configure request</h2>
+        </div>
+        <p class="muted">All timestamps are UTC. Research modes require verified precision.</p>
+      </div>
+
+      <form id="job-form" novalidate>
+        <div class="grid">
+          <label>
+            <span>Symbol</span>
+            <select id="symbol" name="symbol" required></select>
+          </label>
+
+          <label>
+            <span>Mode</span>
+            <select id="mode" name="mode" required>
+              <option value="RESEARCH_MASTER">Research Master</option>
+              <option value="MT5_PARITY_MASTER">MT5 Parity Master</option>
+              <option value="QUICK_DOWNLOAD">Quick Download</option>
+            </select>
+          </label>
+
+          <label>
+            <span>From (UTC)</span>
+            <input id="from" name="from" type="datetime-local" step="1" required>
+          </label>
+
+          <label>
+            <span>To (UTC)</span>
+            <input id="to" name="to" type="datetime-local" step="1" required>
+          </label>
+        </div>
+
+        <div id="errors" class="errors" role="alert" aria-live="polite" hidden></div>
+
+        <div class="actions">
+          <button type="submit">Generate job request</button>
+          <button id="reset" type="button" class="secondary">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="review-title">
+      <div class="section-heading">
+        <div>
+          <p class="step">STEP 2</p>
+          <h2 id="review-title">Review exact payload</h2>
+        </div>
+        <span id="validation-state" class="status status-draft">DRAFT</span>
+      </div>
+      <p class="muted">This request intentionally contains no dataset_id or accepted hash authority.</p>
+      <pre id="payload" tabindex="0">No validated request yet.</pre>
+    </section>
+
+    <section class="panel notice" aria-labelledby="authority-title">
+      <p class="step">AUTHORITY GUARD</p>
+      <h2 id="authority-title">Web does not redefine Canonical truth</h2>
+      <p>Dataset identity, Source Snapshot authority, Canonical logical hashes, precision, row order and Bid/Ask semantics remain owned by the accepted Phase 1–2 contracts.</p>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
