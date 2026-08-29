@@ -70,6 +70,8 @@ A local Canonical core PASS requires:
 - no dedupe or gap fill;
 - repeated conversion of identical Source Snapshot bytes yields the same `logical_row_sha256`.
 
+R09 is the first real-data gate for this Canonical core. Its repository target SHA is frozen by the associated Exchange packet, not by this document.
+
 ## Parquet writer compatibility spike
 
 Do not install a Parquet writer into this repository until the separate compatibility gate is accepted. Candidate writers must be tested in an isolated temporary directory outside the repository with exact version pins.
