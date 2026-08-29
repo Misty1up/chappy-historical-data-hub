@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/canonical_evidence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "symbol", "date_utc", "git_commit", "precision_status",
+    "price_digits", "price_scale", "source_snapshot_sha256", "source_row_count",
+    "canonical_row_count", "row_count_match", "first_timestamp_msc",
+    "last_timestamp_msc", "logical_row_sha256", "order_policy", "dedupe_applied",
+    "gap_fill_applied", "parquet_generated"
+  ],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9._-]+$"},
+    "date_utc": {"type": "string", "format": "date"},
+    "git_commit": {"type": "string", "minLength": 1},
+    "precision_status": {"const": "VERIFIED"},
+    "price_digits": {"type": "integer", "minimum": 0},
+    "price_scale": {"type": "integer", "minimum": 1},
+    "source_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_row_count": {"type": "integer", "minimum": 0},
+    "canonical_row_count": {"type": "integer", "minimum": 0},
+    "row_count_match": {"const": true},
+    "first_timestamp_msc": {"type": ["string", "null"], "pattern": "^[0-9]+$"},
+    "last_timestamp_msc": {"type": ["string", "null"], "pattern": "^[0-9]+$"},
+    "logical_row_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "order_policy": {"const": "SOURCE_SEQ_PRESERVED"},
+    "dedupe_applied": {"const": false},
+    "gap_fill_applied": {"const": false},
+    "parquet_generated": {"const": false}
+  }
+}
