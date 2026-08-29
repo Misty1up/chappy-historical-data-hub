@@ -1,6 +1,6 @@
-# Phase 1 Data Contract
+# Historical Data Hub Data Contract
 
-## Source boundary
+## Phase 1 Source boundary
 
 The Phase 1 persisted **Source Tick Snapshot** is the immutable research-input representation produced after `dukascopy-node@1.50.0` deterministically decodes the Dukascopy feed response. It is not a claim that provider transport bytes such as BI5/JSON response bodies are persisted byte-for-byte.
 
@@ -29,12 +29,44 @@ Path:
 
 Each JSONL record is serialized from SourceTick without project-side price rounding. Snapshot gzip generation is deterministic so repeated serialization of identical SourceTick content yields identical bytes and SHA-256.
 
-## Audit
+## Phase 1 audit
 
 A daily audit records tick count, timestamp bounds, duplicate/same-timestamp counts, out-of-order count, invalid-price count, negative-spread count, snapshot SHA-256 and status.
 
 `PASS` means the Source Tick snapshot passed Phase 1 acquisition integrity checks. It does not mean the data is approved as Canonical or MT5-ready.
 
-## Precision guard
+## Phase 2 precision guard
 
-`price_digits` and `price_scale` are not guessed. A symbol with `precision_status != VERIFIED` cannot be promoted to later Canonical/MT5 stages.
+`price_digits` and `price_scale` are never guessed. A symbol with `precision_status != VERIFIED` cannot be promoted to Canonical Parquet or an MT5 derivative.
+
+The pinned `dukascopy-node@1.50.0` decoder derives its output price formatting from the upstream JSON response `multiplier`. Phase 2 therefore performs a separate precision probe against the same public Dukascopy JSON API and stores only multiplier-related metadata and response hashes; raw transport bodies are discarded.
+
+The precision gate requires all of the following for a PASS Source Tick day:
+
+1. exactly one normalized multiplier across non-empty hourly responses;
+2. the summed upstream hourly tick-delta count equals the Source Snapshot tick count;
+3. the Source Snapshot SHA-256 still equals its Phase 1 daily audit;
+4. source order remains exactly `source_seq=0..N-1`;
+5. the decoder-derived decimal scale converts every lexical Bid and Ask value to an integer exactly, with no tolerance or rounding;
+6. accepted independent cross-adapter findings contain no blocking difference.
+
+The probe does **not** automatically edit `symbol_registry.json`. Human/ChatGPT review of local Evidence is required before `precision_status`, `price_digits`, or `price_scale` are promoted.
+
+## Canonical Tick target schema v0.1
+
+Once precision is VERIFIED, the target logical row is:
+
+- `timestamp_msc`: int64 UTC epoch milliseconds;
+- `source_seq`: source-order integer;
+- `bid`: float64;
+- `ask`: float64;
+- `bid_scaled`: int64 strict decimal representation;
+- `ask_scaled`: int64 strict decimal representation;
+- `bid_volume`: nullable float64;
+- `ask_volume`: nullable float64.
+
+`bid_scaled` and `ask_scaled` are the strict parity basis. They must be generated from the persisted decimal lexical representation without silent rounding.
+
+Canonical generation must preserve source row count, source order, exact duplicates, same-timestamp multi-ticks, Bid/Ask semantics, and nullable volume semantics.
+
+Canonical Parquet production remains blocked until the precision gate is formally accepted for the symbol.
