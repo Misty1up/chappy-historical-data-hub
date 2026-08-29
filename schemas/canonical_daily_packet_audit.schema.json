@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/canonical_daily_packet_audit.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "symbol", "date_utc", "source_snapshot_sha256", "source_tick_count", "canonical_tick_count",
+    "first_timestamp_msc", "last_timestamp_msc", "exact_duplicate_count", "same_timestamp_group_count",
+    "out_of_order_count", "invalid_bid_count", "invalid_ask_count", "negative_spread_count",
+    "bid_scaled_conversion_fail_count", "ask_scaled_conversion_fail_count", "parquet_sha256",
+    "canonical_logical_row_hash", "source_order_preservation", "hash_chain_status", "status"
+  ],
+  "properties": {
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9._-]+$"},
+    "date_utc": {"type": "string", "format": "date"},
+    "source_snapshot_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_tick_count": {"type": "integer", "minimum": 0},
+    "canonical_tick_count": {"type": "integer", "minimum": 0},
+    "first_timestamp_msc": {"type": ["string", "null"], "pattern": "^[0-9]+$"},
+    "last_timestamp_msc": {"type": ["string", "null"], "pattern": "^[0-9]+$"},
+    "exact_duplicate_count": {"type": "integer", "minimum": 0},
+    "same_timestamp_group_count": {"type": "integer", "minimum": 0},
+    "out_of_order_count": {"type": "integer", "minimum": 0},
+    "invalid_bid_count": {"type": "integer", "minimum": 0},
+    "invalid_ask_count": {"type": "integer", "minimum": 0},
+    "negative_spread_count": {"type": "integer", "minimum": 0},
+    "bid_scaled_conversion_fail_count": {"const": 0},
+    "ask_scaled_conversion_fail_count": {"const": 0},
+    "parquet_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "canonical_logical_row_hash": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_order_preservation": {"const": "PASS"},
+    "hash_chain_status": {"const": "PASS"},
+    "status": {"const": "PASS"}
+  }
+}

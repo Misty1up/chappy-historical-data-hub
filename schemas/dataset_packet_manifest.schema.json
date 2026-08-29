@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/dataset_packet_manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "manifest_schema_version", "dataset_id", "canonical_schema_version", "generator_git_commit",
+    "source_run_id", "source_hash_root", "symbol", "requested_from_utc", "requested_to_utc",
+    "tick_count_total", "canonical_file_count", "price_digits", "price_scale", "precision_status",
+    "precision_evidence_sha256", "canonical_logical_hash_root", "parquet_file_hash_root",
+    "mt5_derivative_hash_root", "integrity_status", "canonical_promotion_allowed", "generated_at_utc"
+  ],
+  "properties": {
+    "manifest_schema_version": {"const": "0.1.0"},
+    "dataset_id": {"type": "string", "pattern": "^HDH_DATASET_V1_[0-9a-f]{64}$"},
+    "canonical_schema_version": {"const": "0.1"},
+    "generator_git_commit": {"type": "string", "pattern": "^[0-9a-f]{40,64}$"},
+    "source_run_id": {"type": "string", "minLength": 1},
+    "source_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "symbol": {"type": "string", "pattern": "^[A-Z0-9._-]+$"},
+    "requested_from_utc": {"type": "string", "format": "date-time"},
+    "requested_to_utc": {"type": "string", "format": "date-time"},
+    "tick_count_total": {"type": "integer", "minimum": 0},
+    "canonical_file_count": {"type": "integer", "minimum": 1},
+    "price_digits": {"type": "integer", "minimum": 0},
+    "price_scale": {"type": "integer", "minimum": 1},
+    "precision_status": {"const": "VERIFIED"},
+    "precision_evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "canonical_logical_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parquet_file_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mt5_derivative_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "integrity_status": {"const": "PASS"},
+    "canonical_promotion_allowed": {"const": true},
+    "generated_at_utc": {"type": "string", "format": "date-time"}
+  }
+}
