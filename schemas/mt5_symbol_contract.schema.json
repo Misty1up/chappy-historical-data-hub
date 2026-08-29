@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/mt5_symbol_contract.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "dataset_id", "dataset_binding_status", "canonical_schema_version", "profile_id", "symbol", "requested_from_utc", "requested_to_utc", "source_hash_root", "canonical_logical_hash_root", "price_digits", "price_scale", "csv_columns", "mqltick_mapping", "order_policy", "same_timestamp_policy", "dedupe_applied", "gap_fill_applied", "bid_ask_mapping", "volume_mapping_policy", "tick_files"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "dataset_id": {"type": "string", "pattern": "^HDH_DATASET_V1_[0-9a-f]{64}$"},
+    "dataset_binding_status": {"const": "BOUND_P2_5_PACKET"},
+    "canonical_schema_version": {"const": "0.1"},
+    "profile_id": {"const": "HDH_MT5_MQLTICK_CSV_V1"},
+    "symbol": {"type": "string"},
+    "requested_from_utc": {"type": "string", "format": "date-time"},
+    "requested_to_utc": {"type": "string", "format": "date-time"},
+    "source_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "canonical_logical_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "price_digits": {"type": "integer", "minimum": 0},
+    "price_scale": {"type": "integer", "minimum": 1},
+    "csv_columns": {"const": ["time_msc", "bid", "ask", "bid_scaled", "ask_scaled", "source_seq"]},
+    "mqltick_mapping": {"type": "object"},
+    "order_policy": {"const": "SOURCE_SEQ_PRESERVED_NONDECREASING_TIME"},
+    "same_timestamp_policy": {"const": "PRESERVED"},
+    "dedupe_applied": {"const": false},
+    "gap_fill_applied": {"const": false},
+    "bid_ask_mapping": {"const": "DIRECT_FROM_CANONICAL_SCALED"},
+    "volume_mapping_policy": {"const": "UNMAPPED_BID_ASK_VOLUME_REMAINS_CANONICAL_ONLY"},
+    "tick_files": {"type": "array", "minItems": 1, "items": {"type": "object"}}
+  }
+}

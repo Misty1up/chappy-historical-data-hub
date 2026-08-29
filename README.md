@@ -4,14 +4,9 @@ Canonical Dukascopy historical tick data hub for reproducible Numba/MT5 parity r
 
 ## Current phase
 
-**Phase 2 — P2.4 MT5 Tick Derivative**
+**Phase 2 — P2.5 Dataset Packet / Manifest / Hash Audit**
 
-Phase 1 Acquisition Core is complete. The accepted Phase 2 precision / Canonical scaled-int / production Parquet foundation is merged to `main`. The remaining frozen Phase 2 sequence is:
-
-1. P2.4 MT5 Tick Derivative;
-2. P2.5 Dataset Packet / Manifest / Hash Audit.
-
-Phase 3 Web MVP does not start until both remaining Phase 2 gates are accepted.
+Phase 1 Acquisition Core and P2.1–P2.4 are formally accepted. P2.5 is the only active implementation scope. Phase 3 Web MVP, MCP, AI Router and Portfolio Meta-Controller remain blocked until P2.5 acceptance and formal Phase 2 closeout.
 
 ## Core invariants
 
@@ -24,6 +19,7 @@ Phase 3 Web MVP does not start until both remaining Phase 2 gates are accepted.
 - `bid_scaled` / `ask_scaled` are strict parity fields.
 - Canonical Parquet uses exact-pinned `hyparquet-writer@0.16.8` and independent `hyparquet@1.29.2` readback under `HDH_CANONICAL_SNAPPY_V1`.
 - MT5 artifacts are derivatives of Canonical rows only; they are never a second research master.
+- Downstream reproducibility authority is frozen accepted Source Snapshot bytes + exact SHA + PASS provenance. Live reacquisition is Source Drift Audit only and cannot silently rebaseline an accepted packet.
 
 ## Installation and static gate
 
@@ -70,7 +66,19 @@ P2.4 MT5 derivative:
 npm run mt5 -- --symbol EURUSD --date 2026-01-05 --source-run ./runs/eurusd-source --out ./runs/eurusd-mt5
 ```
 
-See `docs/MT5_DERIVATIVE.md` for the fixed derivative mapping and `mt5/HDH_CustomTicksReplace_Import.mq5` for the formal local `MqlTick` / `CustomTicksReplace` import helper baseline.
+P2.5 Dataset Packet:
+
+```bash
+npm run packet -- \
+  --symbol EURUSD \
+  --source-run ./runs/accepted-eurusd-source \
+  --precision-evidence ./runs/accepted-eurusd-precision/precision_evidence.json \
+  --canonical-root ./runs/accepted-eurusd-parquet \
+  --mt5-root ./runs/accepted-eurusd-mt5 \
+  --out ./runs/accepted-eurusd-data-packet
+```
+
+See `docs/MT5_DERIVATIVE.md` for the fixed P2.4 derivative mapping and `docs/DATASET_PACKET.md` for the P2.5 identity, hash-root and binding contract.
 
 ## Data location rule
 
@@ -78,4 +86,4 @@ Large market datasets, Source Snapshots, generated Parquet, MT5 derivative files
 
 ## Not unlocked yet
 
-P2.5 Dataset Packet / Manifest / Hash Audit, Phase 3 Web MVP, MCP, Regime detection, AI Router and portfolio control remain blocked until their preceding gates are formally accepted.
+Phase 3 Web MVP, MCP, Regime detection, AI Router and Portfolio Meta-Controller remain blocked until P2.5 is formally accepted and Phase 2 is closed.

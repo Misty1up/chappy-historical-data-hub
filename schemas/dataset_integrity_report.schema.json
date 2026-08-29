@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/dataset_integrity_report.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "dataset_id", "source_authority", "live_reacquisition_policy", "source_run_id", "source_hash_root", "source_hash_root_verified", "precision_evidence_sha256", "precision_status", "precision_binding_verified", "canonical_daily_audit_count", "canonical_daily_pass_count", "source_order_preservation", "scaled_conversion_fail_count_total", "canonical_logical_hash_root", "parquet_file_hash_root", "mt5_derivative_hash_root", "numba_binding_status", "mt5_binding_status", "hash_chain_status", "integrity_status", "canonical_promotion_allowed"],
+  "properties": {
+    "schema_version": {"const": "0.1.0"},
+    "dataset_id": {"type": "string", "pattern": "^HDH_DATASET_V1_[0-9a-f]{64}$"},
+    "source_authority": {"const": "FROZEN_ACCEPTED_SOURCE_SNAPSHOT_BYTES_PLUS_SHA_PASS_PROVENANCE"},
+    "live_reacquisition_policy": {"const": "SOURCE_DRIFT_AUDIT_ONLY_NO_SILENT_REBASELINE"},
+    "source_run_id": {"type": "string", "minLength": 1},
+    "source_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "source_hash_root_verified": {"const": true},
+    "precision_evidence_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "precision_status": {"const": "VERIFIED"},
+    "precision_binding_verified": {"const": true},
+    "canonical_daily_audit_count": {"type": "integer", "minimum": 1},
+    "canonical_daily_pass_count": {"type": "integer", "minimum": 1},
+    "source_order_preservation": {"const": "PASS"},
+    "scaled_conversion_fail_count_total": {"const": 0},
+    "canonical_logical_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "parquet_file_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "mt5_derivative_hash_root": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "numba_binding_status": {"const": "BOUND_P2_5_PACKET"},
+    "mt5_binding_status": {"const": "BOUND_P2_5_PACKET"},
+    "hash_chain_status": {"const": "PASS"},
+    "integrity_status": {"const": "PASS"},
+    "canonical_promotion_allowed": {"const": true}
+  }
+}
