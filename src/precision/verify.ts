@@ -9,7 +9,11 @@ import {
   decimalToScaledIntExact,
   requiredDecimalPlaces,
 } from './decimal.js';
-import { probeUtcDayMultipliers, type MultiplierProbeResult } from './upstream-multiplier.js';
+import {
+  probeUtcDayMultipliers,
+  type MultiplierObservation,
+  type MultiplierProbeResult,
+} from './upstream-multiplier.js';
 
 const JSON_NUMBER = '-?(?:0|[1-9]\\d*)(?:\\.\\d+)?(?:[eE][+-]?\\d+)?';
 
@@ -46,6 +50,7 @@ export interface PrecisionEvidence {
     normalized_key: string;
     data_hour_count: number;
     observation_hash: string;
+    observations: MultiplierObservation[];
   };
   observed_decimal_lattice_summary: {
     max_bid_decimal_places: number;
@@ -175,6 +180,7 @@ export async function verifyPrecision(input: VerifyPrecisionInput): Promise<Prec
       normalized_key: probe.unique_multiplier_keys[0]!,
       data_hour_count: probe.data_observation_count,
       observation_hash: probe.observation_hash,
+      observations: probe.observations,
     },
     observed_decimal_lattice_summary: {
       max_bid_decimal_places: maxBidDecimalPlaces,
