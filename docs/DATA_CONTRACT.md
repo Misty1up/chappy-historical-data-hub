@@ -88,6 +88,39 @@ Volumes are serialized as deterministic finite JavaScript number strings or the 
 
 A Canonical core PASS requires source row count == canonical row count and a reproducible `logical_row_sha256` across repeated conversion of the same Source Snapshot bytes.
 
-## Parquet gate
+R09 accepted reference logical hashes for the 2026-01-05 UTC verification window:
 
-Canonical **core** conversion is now allowed for EURUSD and XAUUSD. Canonical **Parquet production** is still blocked until a writer compatibility spike proves all required properties: signed INT64/BigInt fidelity, nullable DOUBLE fidelity, row order preservation, independent readback, and acceptable byte-level determinism behavior under a fixed exact writer version and options.
+- EURUSD: `cd96d7cc9fe2380e51a8bec9793cb39bcdf65f463fbecc0074601e41b76c1c83`.
+- XAUUSD: `9824df2fe6f6fa9367ef95e0bdc79bfe4c6259dfc47d62028800cad853e27d47`.
+
+## Production Canonical Parquet contract
+
+R09 accepted `hyparquet-writer@0.16.8` for writing and `hyparquet@1.29.2` for independent semantic/schema readback. Both packages are exact-pinned.
+
+The production writer profile is fixed as:
+
+- profile id: `HDH_CANONICAL_SNAPPY_V1`;
+- codec: `SNAPPY`;
+- statistics: `false`;
+- row group size: `100000` rows;
+- explicit column types; no type inference;
+- dynamic timestamp metadata: forbidden.
+
+Physical schema/order is fixed to:
+
+1. `timestamp_msc` — REQUIRED INT64;
+2. `source_seq` — REQUIRED INT32;
+3. `bid` — REQUIRED DOUBLE;
+4. `ask` — REQUIRED DOUBLE;
+5. `bid_scaled` — REQUIRED INT64;
+6. `ask_scaled` — REQUIRED INT64;
+7. `bid_volume` — OPTIONAL DOUBLE;
+8. `ask_volume` — OPTIONAL DOUBLE.
+
+Partition path remains:
+
+`canonical/<symbol>/YYYY/MM/YYYY-MM-DD.parquet`
+
+A candidate file is first written to a temporary path in the same directory. Before promotion it must pass independent Parquet readback for row count, exact schema, all row values/order, nullable volume positions, and recomputed logical row SHA-256. Only after readback PASS is the physical SHA-256 computed and the temporary file atomically renamed to its final partition path. If a final file already exists, it is treated as a resume candidate and must independently reverify against the current Canonical rows; a conflicting existing file is never silently overwritten.
+
+Physical Parquet SHA-256 and Canonical logical row SHA-256 remain separate evidence fields. Production market-data Parquet is not considered formally accepted until the local R10 one-day market-data Gate passes for EURUSD and XAUUSD.
