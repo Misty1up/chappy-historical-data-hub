@@ -1,0 +1,22 @@
+{
+  "name": "chappy-historical-data-hub",
+  "version": "0.1.0",
+  "description": "Canonical Dukascopy historical tick data hub for reproducible Numba/MT5 parity research",
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "npm run build && node dist/scripts/run-unit-tests.js",
+    "hdh": "node dist/src/cli.js"
+  },
+  "dependencies": {
+    "dukascopy-node": "1.50.0"
+  },
+  "devDependencies": {
+    "@types/node": "18.17.0",
+    "typescript": "5.9.3"
+  }
+}

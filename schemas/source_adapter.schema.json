@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapter_id", "adapter_version", "library", "library_version", "feed_type", "utc_offset", "volumes", "volume_units", "ignore_flats", "use_cache", "library_retry_count", "price_decode"],
+  "properties": {
+    "adapter_id": {"const": "dukascopy-node"},
+    "adapter_version": {"type": "string"},
+    "library": {"const": "dukascopy-node"},
+    "library_version": {"const": "1.50.0"},
+    "feed_type": {"const": "tick"},
+    "utc_offset": {"const": 0},
+    "volumes": {"const": true},
+    "volume_units": {"const": "units"},
+    "ignore_flats": {"const": false},
+    "use_cache": {"const": false},
+    "library_retry_count": {"const": 0},
+    "price_decode": {"const": "dukascopy-node-json-api-multiplier"}
+  }
+}

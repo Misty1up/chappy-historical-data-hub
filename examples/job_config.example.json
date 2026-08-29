@@ -1,0 +1,11 @@
+{
+  "task_id": "HDH_XAUUSD_20260101_20260108",
+  "symbol": "XAUUSD",
+  "from_utc": "2026-01-01T00:00:00.000Z",
+  "to_utc": "2026-01-08T00:00:00.000Z",
+  "out_dir": "./runs/xauusd-smoke",
+  "batch_size": 10,
+  "batch_pause_ms": 1000,
+  "max_attempts": 4,
+  "force": false
+}

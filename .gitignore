@@ -1,0 +1,19 @@
+node_modules/
+dist/
+.env
+.env.*
+data/
+cache/
+runs/
+artifacts/
+release-data/
+*.bi5
+*.csv.gz
+*.jsonl.gz
+*.parquet
+*.zip
+*.log
+.DS_Store
+Thumbs.db
+
+# Small artificial fixtures under tests/fixtures are allowed only when they contain no real market tick data.
