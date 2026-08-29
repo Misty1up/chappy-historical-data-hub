@@ -12,9 +12,9 @@
       "source_start_hint_utc": "2003-05-04T00:00:00.000Z",
       "source_start_hint_provenance": "Dukascopy HistoryStart/instrument matrix",
       "source_start_hint_status": "REFERENCE_ONLY",
-      "precision_status": "UNVERIFIED",
-      "price_digits": null,
-      "price_scale": null
+      "precision_status": "VERIFIED",
+      "price_digits": 5,
+      "price_scale": 100000
     },
     {
       "canonical_symbol": "XAUUSD",
@@ -27,9 +27,9 @@
       "source_start_hint_utc": "2003-05-05T00:00:00.000Z",
       "source_start_hint_provenance": "Dukascopy HistoryStart/instrument matrix",
       "source_start_hint_status": "REFERENCE_ONLY",
-      "precision_status": "UNVERIFIED",
-      "price_digits": null,
-      "price_scale": null
+      "precision_status": "VERIFIED",
+      "price_digits": 3,
+      "price_scale": 1000
     }
   ]
 }
