@@ -1,0 +1,59 @@
+name: Phase 4 Data Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_json:
+        description: Validated Phase 3 Job Request v0.1 JSON
+        required: true
+        type: string
+      request_note:
+        description: Optional human note; non-authoritative
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Validate request
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      request_key: ${{ steps.validate.outputs.request_key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Phase 4 request
+        id: validate
+        env:
+          HDH_REQUEST_JSON: ${{ inputs.request_json }}
+        run: node dist/src/actions/request-cli.js
+
+  execution-skeleton:
+    name: Validation-only execution skeleton
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    concurrency:
+      group: hdh-phase4-${{ needs.preflight.outputs.request_key }}
+      cancel-in-progress: false
+    steps:
+      - name: P4.2 boundary marker
+        run: |
+          echo "P4.2 PASS: authenticated request was validated."
+          echo "Market-data execution is intentionally not enabled until P4.3."
