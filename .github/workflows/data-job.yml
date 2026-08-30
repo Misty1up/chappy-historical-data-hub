@@ -44,8 +44,8 @@ jobs:
           HDH_REQUEST_JSON: ${{ inputs.request_json }}
         run: node dist/src/actions/request-cli.js
 
-  execute-p4-3:
-    name: Execute QUICK / RESEARCH
+  execute-p4-4:
+    name: Execute accepted Core path
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -73,8 +73,10 @@ jobs:
           HDH_REQUEST_JSON: ${{ inputs.request_json }}
         run: node dist/src/actions/request-cli.js
 
-      - name: Execute accepted Core path
+      - name: Execute accepted Core and write action result
         run: node dist/src/actions/execute-cli.js
 
-      - name: P4.3 transport boundary
-        run: echo "Execution output remains runner-local until P4.5 Artifact transport is accepted."
+      - name: P4.4 transport boundary
+        run: |
+          echo "P4.4 result binding is runner-local."
+          echo "Artifact packaging, size enforcement, retention and upload are intentionally deferred to P4.5."
