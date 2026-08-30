@@ -44,8 +44,8 @@ jobs:
           HDH_REQUEST_JSON: ${{ inputs.request_json }}
         run: node dist/src/actions/request-cli.js
 
-  execution-skeleton:
-    name: Validation-only execution skeleton
+  execute-p4-3:
+    name: Execute QUICK / RESEARCH
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -53,7 +53,28 @@ jobs:
       group: hdh-phase4-${{ needs.preflight.outputs.request_key }}
       cancel-in-progress: false
     steps:
-      - name: P4.2 boundary marker
-        run: |
-          echo "P4.2 PASS: authenticated request was validated."
-          echo "Market-data execution is intentionally not enabled until P4.3."
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Revalidate request in execution workspace
+        env:
+          HDH_REQUEST_JSON: ${{ inputs.request_json }}
+        run: node dist/src/actions/request-cli.js
+
+      - name: Execute accepted Core path
+        run: node dist/src/actions/execute-cli.js
+
+      - name: P4.3 transport boundary
+        run: echo "Execution output remains runner-local until P4.5 Artifact transport is accepted."
