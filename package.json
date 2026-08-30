@@ -17,7 +17,8 @@
     "canonical": "node dist/src/canonical-cli.js",
     "parquet": "node dist/src/parquet-cli.js",
     "mt5": "node dist/src/mt5-cli.js",
-    "packet": "node dist/src/packet-cli.js"
+    "packet": "node dist/src/packet-cli.js",
+    "local": "node dist/src/local-entry.js"
   },
   "dependencies": {
     "dukascopy-node": "1.50.0",
