@@ -1,7 +1,7 @@
 {
   "name": "chappy-historical-data-hub",
   "version": "0.1.0",
-  "description": "Canonical Dukascopy historical tick data hub for reproducible Numba/MT5 parity research",
+  "private": true,
   "type": "module",
   "engines": {
     "node": ">=18"
@@ -23,7 +23,8 @@
   "dependencies": {
     "dukascopy-node": "1.50.0",
     "hyparquet": "1.29.2",
-    "hyparquet-writer": "0.16.8"
+    "hyparquet-writer": "0.16.8",
+    "sql.js": "1.14.1"
   },
   "devDependencies": {
     "@types/node": "18.17.0",
