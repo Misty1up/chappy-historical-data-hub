@@ -23,7 +23,7 @@ function passResult(): Phase4ActionResult {
       requested_to_utc: '2026-01-06T00:00:00.000Z',
       mode: 'RESEARCH_MASTER',
       requested_output: 'DATASET_PACKET',
-      accepted_contract_version: '0.1',
+      accepted_contract_version: 'HDH_PHASE2_ACCEPTED_V1',
     },
     workflow_run_id: '123',
     workflow_run_attempt: '1',
