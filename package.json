@@ -1,7 +1,7 @@
 {
   "name": "chappy-historical-data-hub",
   "version": "0.1.0",
-  "private": true,
+  "description": "Canonical Dukascopy historical tick data hub for reproducible Numba/MT5 parity research",
   "type": "module",
   "engines": {
     "node": ">=18"
