@@ -59,14 +59,18 @@ export interface Phase4ActionResult {
   mt5_parity_binding?: Mt5ParityPacketBinding;
 }
 
+function assertSameUtcInstant(requestValue: string, manifestValue: string, label: string): void {
+  const requestMs = Date.parse(requestValue);
+  const manifestMs = Date.parse(manifestValue);
+  if (!Number.isFinite(requestMs) || !Number.isFinite(manifestMs) || requestMs !== manifestMs) {
+    throw new Error(`Result manifest ${label} mismatch: request=${requestValue} manifest=${manifestValue}`);
+  }
+}
+
 function assertRequestBinding(request: WebJobRequest, manifest: { symbol: string; requested_from_utc: string; requested_to_utc: string }): void {
   if (manifest.symbol !== request.symbol) throw new Error(`Result manifest symbol mismatch: request=${request.symbol} manifest=${manifest.symbol}`);
-  if (manifest.requested_from_utc !== request.requested_from_utc) {
-    throw new Error(`Result manifest requested_from_utc mismatch: request=${request.requested_from_utc} manifest=${manifest.requested_from_utc}`);
-  }
-  if (manifest.requested_to_utc !== request.requested_to_utc) {
-    throw new Error(`Result manifest requested_to_utc mismatch: request=${request.requested_to_utc} manifest=${manifest.requested_to_utc}`);
-  }
+  assertSameUtcInstant(request.requested_from_utc, manifest.requested_from_utc, 'requested_from_utc');
+  assertSameUtcInstant(request.requested_to_utc, manifest.requested_to_utc, 'requested_to_utc');
 }
 
 function assertSha256(value: string, label: string): void {
