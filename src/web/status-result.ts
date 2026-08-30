@@ -74,7 +74,17 @@ export function assertWebJobView(view: WebJobView): void {
   if (view.result && !isTerminalWebJobStatus(view.status)) {
     throw new Error('result metadata is only allowed on terminal fixture states');
   }
-  if (view.result && view.result.is_fixture !== true) {
+  if (!view.result) return;
+  if (view.result.is_fixture !== true) {
     throw new Error('Phase 3 fixture model only accepts explicitly marked synthetic results');
+  }
+  if (view.result.canonical_promotion_allowed !== false) {
+    throw new Error('Phase 3 Web fixtures must never allow Canonical promotion');
+  }
+  if (!view.result.dataset_id.startsWith('FIXTURE_ONLY_')) {
+    throw new Error('Phase 3 fixture dataset_id must be visibly non-Canonical');
+  }
+  if (!view.result.packet_artifact_reference.startsWith('fixture://')) {
+    throw new Error('Phase 3 fixture packet reference must use fixture://');
   }
 }
