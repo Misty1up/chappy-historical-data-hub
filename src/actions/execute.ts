@@ -3,6 +3,7 @@ import { mkdir, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { planUtcDays } from '../core/job-planner.js';
 import type { WebJobRequest } from '../web/contract.js';
+import { Phase4CommandExecutionError } from './failure.js';
 
 export interface Phase4ExecutionPaths {
   root: string;
@@ -92,7 +93,11 @@ export function buildPhase4ExecutionPlan(request: WebJobRequest, root = '.hdh-ph
 export async function executePhase4Plan(plan: Phase4ExecutionPlan): Promise<void> {
   await mkdir(resolve(plan.paths.root), { recursive: true });
   for (const args of plan.commands) {
-    execFileSync(process.execPath, args, { cwd: process.cwd(), stdio: 'inherit' });
+    try {
+      execFileSync(process.execPath, args, { cwd: process.cwd(), stdio: 'inherit' });
+    } catch (error: unknown) {
+      throw new Phase4CommandExecutionError(args, error);
+    }
   }
   if (plan.request.mode !== 'QUICK_DOWNLOAD') {
     JSON.parse(await readFile(resolve(plan.paths.packet, 'manifest.json'), 'utf8'));
