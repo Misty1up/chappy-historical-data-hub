@@ -9,6 +9,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "build:web": "npm run build && node dist/scripts/build-web.js",
+    "verify:web-static": "node dist/scripts/verify-web-static.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "npm run build && node dist/scripts/run-unit-tests.js",
     "hdh": "node dist/src/cli.js",
