@@ -3,13 +3,17 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { assessArtifactSize, clearSuccessMetadataForTerminalResult, PHASE4_ARTIFACT_CAP_BYTES } from '../../src/actions/artifact.js';
 import { buildPhase4ExecutionPlan } from '../../src/actions/execute.js';
-import { parseWorkflowRequestJson } from '../../src/actions/request.js';
+import { parseAndValidateActionRequestJson } from '../../src/actions/request.js';
 import { buildPassActionResult, type Phase4ActionResult } from '../../src/actions/result.js';
 import type { DatasetPacketManifest } from '../../src/packet/types.js';
-import type { WebJobRequest } from '../../src/web/contract.js';
+import type { WebJobRequest, WebSymbolContract } from '../../src/web/contract.js';
 
 const workflow = readFileSync('.github/workflows/data-job.yml', 'utf8');
 const executionSource = readFileSync('src/actions/execute.ts', 'utf8');
+const symbols: WebSymbolContract[] = [
+  { canonical_symbol: 'EURUSD', enabled: true, precision_status: 'VERIFIED' },
+  { canonical_symbol: 'XAUUSD', enabled: true, precision_status: 'VERIFIED' },
+];
 
 function request(mode: WebJobRequest['mode'] = 'RESEARCH_MASTER'): WebJobRequest {
   return {
@@ -75,7 +79,7 @@ test('P4.6 orchestration delegates retry/resume semantics to accepted CLIs witho
   assert.doesNotMatch(executionSource, /retry\s*=|setTimeout\(|sleep\(/);
 });
 
-test('P4.6 workflow request authority rejects injected accepted-baseline or result identity fields', async () => {
+test('P4.6 workflow request authority rejects injected accepted-baseline or result identity fields', () => {
   const base = request();
   for (const [field, value] of [
     ['dataset_id', 'HDH_DATASET_V1_fake'],
@@ -85,7 +89,9 @@ test('P4.6 workflow request authority rejects injected accepted-baseline or resu
     ['accepted_source_sha256', '3'.repeat(64)],
   ] as const) {
     const injected = JSON.stringify({ ...base, [field]: value });
-    await assert.rejects(() => parseWorkflowRequestJson(injected), /Unexpected request field/);
+    const result = parseAndValidateActionRequestJson(injected, symbols);
+    assert.equal(result.ok, false);
+    assert.match(result.errors.join(' '), /unexpected fields/);
   }
 });
 
