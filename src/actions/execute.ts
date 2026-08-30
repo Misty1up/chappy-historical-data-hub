@@ -25,16 +25,22 @@ function requestDatePrefix(value: string): string {
   return match?.[1] ?? 'INVALID_DATE';
 }
 
+function requireMidnight(value: string, field: string): string {
+  const parsed = new Date(value);
+  if (!Number.isFinite(parsed.getTime())
+    || parsed.getUTCHours() !== 0
+    || parsed.getUTCMinutes() !== 0
+    || parsed.getUTCSeconds() !== 0
+    || parsed.getUTCMilliseconds() !== 0) {
+    throw new Error(`${field} must be an exact UTC midnight for Phase 4 P4.3 execution`);
+  }
+  return parsed.toISOString().slice(0, 10);
+}
+
 export function phase4ExecutionRootForRequest(request: WebJobRequest, root = '.hdh-phase4/execution'): string {
   const safeKey = `${request.symbol}-${requestDatePrefix(request.requested_from_utc)}-${requestDatePrefix(request.requested_to_utc)}-${request.mode}`
     .replace(/[^A-Za-z0-9_.-]/g, '_');
   return `${root}/${safeKey}`;
-}
-
-function requireMidnight(value: string, field: string): string {
-  const match = /^(\d{4}-\d{2}-\d{2})T00:00:00\.000Z$/.exec(value);
-  if (!match) throw new Error(`${field} must be an exact UTC midnight for Phase 4 P4.3 execution`);
-  return match[1]!;
 }
 
 export function buildPhase4ExecutionPlan(request: WebJobRequest, root = '.hdh-phase4/execution'): Phase4ExecutionPlan {
