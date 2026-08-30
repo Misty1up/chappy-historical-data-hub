@@ -3,7 +3,7 @@ import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from 'node:fs/
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import test from 'node:test';
-import { atomicWriteFile } from '../../src/core/atomic-write.js';
+import { atomicWriteFile, type BinaryBytes } from '../../src/core/atomic-write.js';
 import { sha256File } from '../../src/core/hash.js';
 import { buildSha256Sums } from '../../src/core/run-evidence.js';
 import { hashEntriesRoot } from '../../src/packet/contract.js';
@@ -16,6 +16,14 @@ const CANONICAL_LOGICAL_ROW_HASH = '3'.repeat(64);
 const SOURCE_SNAPSHOT_SHA = '4'.repeat(64);
 const CANONICAL_PATH = `canonical/EURUSD/2026/01/${DATE_UTC}.parquet`;
 const MT5_PATH = `mt5/ticks/EURUSD/2026/01/${DATE_UTC}.ticks.csv`;
+
+function binary(data: ArrayLike<number>): BinaryBytes {
+  return Uint8Array.from(data);
+}
+
+function utf8(text: string): BinaryBytes {
+  return binary(Buffer.from(text, 'utf8'));
+}
 
 async function writeSyntheticPacket(packetRoot: string): Promise<void> {
   const canonicalPayload = 'synthetic-canonical-parquet-fixture\n';
@@ -143,19 +151,19 @@ async function writeSyntheticPacket(packetRoot: string): Promise<void> {
   await buildSha256Sums(packetRoot);
 }
 
-async function walkFiles(root: string, current = root): Promise<{ path: string; bytes: Buffer }[]> {
-  const rows: { path: string; bytes: Buffer }[] = [];
+async function walkFiles(root: string, current = root): Promise<{ path: string; bytes: BinaryBytes }[]> {
+  const rows: { path: string; bytes: BinaryBytes }[] = [];
   for (const entry of await readdir(current, { withFileTypes: true })) {
     const absolute = resolve(current, entry.name);
     if (entry.isDirectory()) rows.push(...await walkFiles(root, absolute));
-    else if (entry.isFile()) rows.push({ path: relative(root, absolute).replaceAll('\\', '/'), bytes: await readFile(absolute) });
+    else if (entry.isFile()) rows.push({ path: relative(root, absolute).replaceAll('\\', '/'), bytes: binary(await readFile(absolute)) });
   }
   return rows.sort((a, b) => a.path.localeCompare(b.path));
 }
 
-function storedZip(entries: { name: string; bytes: Buffer }[]): Buffer {
-  const localParts: Buffer[] = [];
-  const centralParts: Buffer[] = [];
+function storedZip(entries: { name: string; bytes: BinaryBytes }[]): BinaryBytes {
+  const localParts: BinaryBytes[] = [];
+  const centralParts: BinaryBytes[] = [];
   let localOffset = 0;
   for (const entry of entries) {
     const name = Buffer.from(entry.name, 'utf8');
@@ -170,7 +178,7 @@ function storedZip(entries: { name: string; bytes: Buffer }[]): Buffer {
     local.writeUInt32LE(entry.bytes.length, 22);
     local.writeUInt16LE(name.length, 26);
     local.writeUInt16LE(0, 28);
-    localParts.push(local, name, entry.bytes);
+    localParts.push(binary(local), binary(name), entry.bytes);
 
     const central = Buffer.alloc(46);
     central.writeUInt32LE(0x02014b50, 0);
@@ -189,10 +197,10 @@ function storedZip(entries: { name: string; bytes: Buffer }[]): Buffer {
     central.writeUInt16LE(0, 36);
     central.writeUInt32LE(((0o100644 & 0xffff) * 0x10000) >>> 0, 38);
     central.writeUInt32LE(localOffset, 42);
-    centralParts.push(central, name);
+    centralParts.push(binary(central), binary(name));
     localOffset += local.length + name.length + entry.bytes.length;
   }
-  const centralDirectory = Buffer.concat(centralParts);
+  const centralDirectory = binary(Buffer.concat(centralParts));
   const eocd = Buffer.alloc(22);
   eocd.writeUInt32LE(0x06054b50, 0);
   eocd.writeUInt16LE(0, 4);
@@ -202,7 +210,7 @@ function storedZip(entries: { name: string; bytes: Buffer }[]): Buffer {
   eocd.writeUInt32LE(centralDirectory.length, 12);
   eocd.writeUInt32LE(localOffset, 16);
   eocd.writeUInt16LE(0, 20);
-  return Buffer.concat([...localParts, centralDirectory, eocd]);
+  return binary(Buffer.concat([...localParts, centralDirectory, binary(eocd)]));
 }
 
 function isLocalError(code: string) {
@@ -260,7 +268,7 @@ test('P5.1 scans a downloaded Artifact-style ZIP containing DATA_PACKET plus tra
     const packetFiles = await walkFiles(packet);
     const zip = storedZip([
       ...packetFiles.map(file => ({ name: `DATA_PACKET/${file.path}`, bytes: file.bytes })),
-      { name: 'action_result.json', bytes: Buffer.from('{"status":"PASS"}\n') },
+      { name: 'action_result.json', bytes: utf8('{"status":"PASS"}\n') },
     ]);
     const zipPath = resolve(root, 'artifact.zip');
     await writeFile(zipPath, zip);
@@ -279,8 +287,8 @@ test('P5.1 rejects ZIP traversal before Packet discovery or validation', async (
   try {
     const zipPath = resolve(root, 'unsafe.zip');
     await writeFile(zipPath, storedZip([
-      { name: '../escape.txt', bytes: Buffer.from('x') },
-      { name: 'DATA_PACKET/manifest.json', bytes: Buffer.from('{}\n') },
+      { name: '../escape.txt', bytes: utf8('x') },
+      { name: 'DATA_PACKET/manifest.json', bytes: utf8('{}\n') },
     ]));
     await assert.rejects(() => scanLocalDatasetPacket(zipPath, resolve(root, 'local')), isLocalError('UNSAFE_ARCHIVE_ENTRY'));
   } finally {
