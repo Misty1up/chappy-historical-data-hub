@@ -20,6 +20,17 @@ export interface Phase4ExecutionPlan {
   commands: string[][];
 }
 
+function requestDatePrefix(value: string): string {
+  const match = /^(\d{4}-\d{2}-\d{2})/.exec(value);
+  return match?.[1] ?? 'INVALID_DATE';
+}
+
+export function phase4ExecutionRootForRequest(request: WebJobRequest, root = '.hdh-phase4/execution'): string {
+  const safeKey = `${request.symbol}-${requestDatePrefix(request.requested_from_utc)}-${requestDatePrefix(request.requested_to_utc)}-${request.mode}`
+    .replace(/[^A-Za-z0-9_.-]/g, '_');
+  return `${root}/${safeKey}`;
+}
+
 function requireMidnight(value: string, field: string): string {
   const match = /^(\d{4}-\d{2}-\d{2})T00:00:00\.000Z$/.exec(value);
   if (!match) throw new Error(`${field} must be an exact UTC midnight for Phase 4 P4.3 execution`);
@@ -32,8 +43,7 @@ export function buildPhase4ExecutionPlan(request: WebJobRequest, root = '.hdh-ph
   const days = planUtcDays(fromDate, toDate).map(day => day.dateUtc);
   if (days.length === 0) throw new Error('Phase 4 execution range contains no UTC days');
 
-  const safeKey = `${request.symbol}-${fromDate}-${toDate}-${request.mode}`.replace(/[^A-Za-z0-9_.-]/g, '_');
-  const base = `${root}/${safeKey}`;
+  const base = phase4ExecutionRootForRequest(request, root);
   const paths: Phase4ExecutionPaths = {
     root: base,
     sourceRun: `${base}/source`,

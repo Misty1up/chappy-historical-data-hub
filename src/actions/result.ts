@@ -83,6 +83,37 @@ function assertResearchManifest(request: WebJobRequest, manifest: DatasetPacketM
   assertSha256(manifest.mt5_derivative_hash_root, 'mt5_derivative_hash_root');
 }
 
+export function buildFailureActionResult(
+  request: WebJobRequest,
+  context: Phase4ResultContext,
+  failureCode: string,
+  failureDetail: string,
+  localFallbackRequired = false,
+): Phase4ActionResult {
+  return {
+    action_result_schema_version: ACTION_RESULT_SCHEMA_VERSION,
+    request,
+    ...context,
+    status: 'FAIL',
+    dataset_id: null,
+    symbol: request.symbol,
+    requested_from_utc: request.requested_from_utc,
+    requested_to_utc: request.requested_to_utc,
+    mode: request.mode,
+    tick_count_total: null,
+    source_hash_root: null,
+    canonical_logical_hash_root: null,
+    integrity_status: 'FAIL',
+    canonical_promotion_allowed: false,
+    packet_artifact_name: null,
+    packet_artifact_reference: null,
+    failure_code: failureCode,
+    failure_detail: failureDetail,
+    local_fallback_required: localFallbackRequired,
+    is_fixture: false,
+  };
+}
+
 export function buildPassActionResult(
   request: WebJobRequest,
   manifest: Phase4QuickManifest | DatasetPacketManifest,

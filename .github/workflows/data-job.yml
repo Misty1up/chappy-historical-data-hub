@@ -44,8 +44,8 @@ jobs:
           HDH_REQUEST_JSON: ${{ inputs.request_json }}
         run: node dist/src/actions/request-cli.js
 
-  execute-p4-4:
-    name: Execute accepted Core path
+  execute-p4-5:
+    name: Execute accepted Core path and bounded Artifact transport
     needs: preflight
     runs-on: ubuntu-latest
     timeout-minutes: 180
@@ -74,9 +74,79 @@ jobs:
         run: node dist/src/actions/request-cli.js
 
       - name: Execute accepted Core and write action result
+        id: execute
+        continue-on-error: true
         run: node dist/src/actions/execute-cli.js
 
-      - name: P4.4 transport boundary
+      - name: Measure and prepare bounded Artifact transport
+        id: transport
+        if: ${{ always() }}
+        continue-on-error: true
+        run: node dist/src/actions/transport-cli.js prepare
+
+      - name: Upload temporary success Artifact
+        id: upload
+        if: ${{ steps.transport.outcome == 'success' && steps.transport.outputs.transport_status == 'PASS' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.transport.outputs.artifact_name }}
+          path: |
+            ${{ steps.transport.outputs.primary_path }}
+            ${{ steps.transport.outputs.result_path }}
+          retention-days: 1
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Convert Artifact upload failure to terminal FAIL metadata
+        id: upload_failure
+        if: ${{ always() && steps.upload.outcome == 'failure' }}
+        continue-on-error: true
+        run: node dist/src/actions/transport-cli.js upload-failed
+
+      - name: Upload compact FAIL or HOLD diagnostic
+        if: ${{ always() && steps.transport.outcome == 'success' && steps.transport.outputs.transport_status != 'PASS' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.transport.outputs.diagnostic_name }}
+          path: ${{ steps.transport.outputs.diagnostic_path }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload compact Artifact-upload failure diagnostic
+        if: ${{ always() && steps.upload_failure.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.upload_failure.outputs.diagnostic_name }}
+          path: ${{ steps.upload_failure.outputs.diagnostic_path }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Enforce Phase 4 terminal semantics
+        if: ${{ always() }}
+        env:
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+          TRANSPORT_OUTCOME: ${{ steps.transport.outcome }}
+          TRANSPORT_STATUS: ${{ steps.transport.outputs.transport_status }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
         run: |
-          echo "P4.4 result binding is runner-local."
-          echo "Artifact packaging, size enforcement, retention and upload are intentionally deferred to P4.5."
+          if [ "$TRANSPORT_OUTCOME" != "success" ]; then
+            echo "FAIL: Artifact transport preparation did not complete."
+            exit 1
+          fi
+          if [ "$TRANSPORT_STATUS" = "HOLD" ]; then
+            echo "HOLD: bounded transport stopped safely; inspect the compact diagnostic Artifact."
+            exit 0
+          fi
+          if [ "$TRANSPORT_STATUS" = "FAIL" ]; then
+            echo "FAIL: execution failed; inspect the compact diagnostic Artifact."
+            exit 1
+          fi
+          if [ "$TRANSPORT_STATUS" = "PASS" ] && [ "$EXECUTE_OUTCOME" = "success" ] && [ "$UPLOAD_OUTCOME" = "success" ]; then
+            echo "PASS: temporary Artifact uploaded with one-day retention. Download it locally."
+            exit 0
+          fi
+          echo "FAIL: terminal execution/transport state is inconsistent or upload failed."
+          exit 1
