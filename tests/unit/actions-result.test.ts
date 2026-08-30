@@ -72,6 +72,33 @@ test('RESEARCH_MASTER uses the same packet authority without claiming terminal p
   assert.equal(result.mt5_parity_binding, undefined);
 });
 
+test('result binding accepts semantically identical UTC timestamps with Z versus .000Z', () => {
+  const request: WebJobRequest = {
+    ...baseRequest,
+    mode: 'RESEARCH_MASTER',
+    requested_from_utc: '2026-01-05T00:00:00Z',
+    requested_to_utc: '2026-01-06T00:00:00Z',
+  };
+  const result = buildPassActionResult(request, packet, context);
+  assert.equal(result.status, 'PASS');
+  assert.equal(result.request.requested_from_utc, '2026-01-05T00:00:00Z');
+  assert.equal(result.request.requested_to_utc, '2026-01-06T00:00:00Z');
+  assert.equal(result.requested_from_utc, packet.requested_from_utc);
+  assert.equal(result.requested_to_utc, packet.requested_to_utc);
+});
+
+test('result binding still rejects an actual UTC instant mismatch', () => {
+  const request: WebJobRequest = { ...baseRequest, mode: 'RESEARCH_MASTER' };
+  assert.throws(
+    () => buildPassActionResult(request, { ...packet, requested_from_utc: '2026-01-05T00:00:00.001Z' }, context),
+    /requested_from_utc mismatch/,
+  );
+  assert.throws(
+    () => buildPassActionResult(request, { ...packet, requested_to_utc: '2026-01-06T00:00:01.000Z' }, context),
+    /requested_to_utc mismatch/,
+  );
+});
+
 test('result binding rejects request/manifest mismatch instead of reinterpreting authority', () => {
   const request: WebJobRequest = { ...baseRequest, mode: 'RESEARCH_MASTER' };
   assert.throws(() => buildPassActionResult(request, { ...packet, source_hash_root: 'not-a-hash' }, context), /source_hash_root/);
