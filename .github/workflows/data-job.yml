@@ -1,0 +1,152 @@
+name: Phase 4 Data Job
+
+on:
+  workflow_dispatch:
+    inputs:
+      request_json:
+        description: Validated Phase 3 Job Request v0.1 JSON
+        required: true
+        type: string
+      request_note:
+        description: Optional human note; non-authoritative
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  preflight:
+    name: Validate request
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      request_key: ${{ steps.validate.outputs.request_key }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Validate Phase 4 request
+        id: validate
+        env:
+          HDH_REQUEST_JSON: ${{ inputs.request_json }}
+        run: node dist/src/actions/request-cli.js
+
+  execute-p4-5:
+    name: Execute accepted Core path and bounded Artifact transport
+    needs: preflight
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    concurrency:
+      group: hdh-phase4-${{ needs.preflight.outputs.request_key }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Revalidate request in execution workspace
+        env:
+          HDH_REQUEST_JSON: ${{ inputs.request_json }}
+        run: node dist/src/actions/request-cli.js
+
+      - name: Execute accepted Core and write action result
+        id: execute
+        continue-on-error: true
+        run: node dist/src/actions/execute-cli.js
+
+      - name: Measure and prepare bounded Artifact transport
+        id: transport
+        if: ${{ always() }}
+        continue-on-error: true
+        run: node dist/src/actions/transport-cli.js prepare
+
+      - name: Upload temporary success Artifact
+        id: upload
+        if: ${{ steps.transport.outcome == 'success' && steps.transport.outputs.transport_status == 'PASS' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.transport.outputs.artifact_name }}
+          path: |
+            ${{ steps.transport.outputs.primary_path }}
+            ${{ steps.transport.outputs.result_path }}
+          retention-days: 1
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Convert Artifact upload failure to terminal FAIL metadata
+        id: upload_failure
+        if: ${{ always() && steps.upload.outcome == 'failure' }}
+        continue-on-error: true
+        run: node dist/src/actions/transport-cli.js upload-failed
+
+      - name: Upload compact FAIL or HOLD diagnostic
+        if: ${{ always() && steps.transport.outcome == 'success' && steps.transport.outputs.transport_status != 'PASS' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.transport.outputs.diagnostic_name }}
+          path: ${{ steps.transport.outputs.diagnostic_path }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Upload compact Artifact-upload failure diagnostic
+        if: ${{ always() && steps.upload_failure.outcome == 'success' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.upload_failure.outputs.diagnostic_name }}
+          path: ${{ steps.upload_failure.outputs.diagnostic_path }}
+          retention-days: 1
+          if-no-files-found: error
+
+      - name: Enforce Phase 4 terminal semantics
+        if: ${{ always() }}
+        env:
+          EXECUTE_OUTCOME: ${{ steps.execute.outcome }}
+          TRANSPORT_OUTCOME: ${{ steps.transport.outcome }}
+          TRANSPORT_STATUS: ${{ steps.transport.outputs.transport_status }}
+          UPLOAD_OUTCOME: ${{ steps.upload.outcome }}
+        run: |
+          if [ "$TRANSPORT_OUTCOME" != "success" ]; then
+            echo "FAIL: Artifact transport preparation did not complete."
+            exit 1
+          fi
+          if [ "$TRANSPORT_STATUS" = "HOLD" ]; then
+            echo "HOLD: bounded transport stopped safely; inspect the compact diagnostic Artifact."
+            exit 0
+          fi
+          if [ "$TRANSPORT_STATUS" = "FAIL" ]; then
+            echo "FAIL: execution failed; inspect the compact diagnostic Artifact."
+            exit 1
+          fi
+          if [ "$TRANSPORT_STATUS" = "PASS" ] && [ "$EXECUTE_OUTCOME" = "success" ] && [ "$UPLOAD_OUTCOME" = "success" ]; then
+            echo "PASS: temporary Artifact uploaded with one-day retention. Download it locally."
+            exit 0
+          fi
+          echo "FAIL: terminal execution/transport state is inconsistent or upload failed."
+          exit 1
