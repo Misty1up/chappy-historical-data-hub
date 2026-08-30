@@ -38,6 +38,18 @@ test('P4.3 RESEARCH plan composes accepted acquisition/precision/parquet/MT5-der
   assert.match(plan.commands.at(-1)!.join(' '), /--precision-evidence .*precision_evidence\.json/);
 });
 
+test('P4.3 accepts equivalent strict UTC midnight form without explicit milliseconds', () => {
+  const plan = buildPhase4ExecutionPlan({
+    ...request('RESEARCH_MASTER'),
+    requested_from_utc: '2026-01-06T00:00:00Z',
+    requested_to_utc: '2026-01-07T00:00:00Z'
+  });
+  assert.deepEqual(plan.utcDays, ['2026-01-06']);
+  assert.deepEqual(plan.commands[0]!.slice(0, 8), [
+    'dist/src/cli.js', 'acquire', '--symbol', 'EURUSD', '--from', '2026-01-06', '--to', '2026-01-07'
+  ]);
+});
+
 test('P4.3 preserves exact-range authority by refusing non-midnight requests instead of widening them', () => {
   assert.throws(() => buildPhase4ExecutionPlan({
     ...request('RESEARCH_MASTER'),
