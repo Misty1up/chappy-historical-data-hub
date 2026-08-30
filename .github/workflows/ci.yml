@@ -51,3 +51,9 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Build Web static output
+        run: npm run build:web
+
+      - name: Verify Web static output
+        run: npm run verify:web-static

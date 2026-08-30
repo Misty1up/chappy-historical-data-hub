@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CHAPPY Historical Data Hub</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <main id="main-content" class="shell" tabindex="-1">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">PHASE 3 WEB MVP</p>
+        <h1>CHAPPY Historical Data Hub</h1>
+        <p class="lede">Build a validated job request and inspect execution metadata without changing Canonical dataset authority.</p>
+      </div>
+      <span class="badge">Control plane only</span>
+    </header>
+
+    <section class="panel" aria-labelledby="job-title">
+      <div class="section-heading">
+        <div>
+          <p class="step">STEP 1</p>
+          <h2 id="job-title">Configure request</h2>
+        </div>
+        <p id="request-help" class="muted">All timestamps are UTC. Research modes require verified precision.</p>
+      </div>
+
+      <form id="job-form" aria-describedby="request-help" novalidate>
+        <div class="grid">
+          <label><span>Symbol</span><select id="symbol" name="symbol" required aria-describedby="symbol-help"></select><small id="symbol-help">Only enabled symbols from the accepted registry are available.</small></label>
+          <label>
+            <span>Mode</span>
+            <select id="mode" name="mode" required aria-describedby="mode-help">
+              <option value="RESEARCH_MASTER">Research Master</option>
+              <option value="MT5_PARITY_MASTER">MT5 Parity Master</option>
+              <option value="QUICK_DOWNLOAD">Quick Download</option>
+            </select>
+            <small id="mode-help">Research and MT5 parity modes require VERIFIED precision.</small>
+          </label>
+          <label><span>From (UTC)</span><input id="from" name="from" type="datetime-local" step="1" required aria-describedby="utc-help"></label>
+          <label><span>To (UTC)</span><input id="to" name="to" type="datetime-local" step="1" required aria-describedby="utc-help"></label>
+        </div>
+        <p id="utc-help" class="field-help">Browser-local date controls are serialized as explicit UTC Z timestamps. The start must be earlier than the end.</p>
+        <div id="errors" class="errors" role="alert" aria-live="assertive" tabindex="-1" hidden></div>
+        <div class="actions">
+          <button type="submit">Generate job request</button>
+          <button id="reset" type="button" class="secondary">Reset</button>
+        </div>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="review-title">
+      <div class="section-heading">
+        <div><p class="step">STEP 2</p><h2 id="review-title">Review exact payload</h2></div>
+        <span id="validation-state" class="status status-draft" role="status" aria-live="polite">DRAFT</span>
+      </div>
+      <p class="muted">This request intentionally contains no dataset_id or accepted hash authority.</p>
+      <pre id="payload" tabindex="0">No validated request yet.</pre>
+    </section>
+
+    <section class="panel" aria-labelledby="status-title">
+      <div class="section-heading">
+        <div><p class="step">STEP 3</p><h2 id="status-title">Execution status & result fixture</h2></div>
+        <span id="job-status" class="status status-draft" role="status" aria-live="polite">DRAFT</span>
+      </div>
+      <p id="job-detail" class="muted" aria-live="polite">Generate a validated request, then load a synthetic execution fixture.</p>
+      <div id="fixture-actions" class="fixture-actions" aria-label="Synthetic execution scenarios" hidden>
+        <button type="button" data-scenario="PASS">Load PASS fixture</button>
+        <button type="button" data-scenario="HOLD" class="secondary">Load HOLD fixture</button>
+        <button type="button" data-scenario="FAIL" class="danger">Load FAIL fixture</button>
+      </div>
+      <div class="fixture-warning" role="note">
+        <strong>Synthetic fixture only.</strong> Fixture hashes, dataset_id and packet references are UI test data and are never Canonical authority.
+      </div>
+      <div id="result-panel" aria-live="polite" hidden>
+        <h3>Result metadata</h3>
+        <dl id="result-metadata" class="result-list"></dl>
+        <h3>Dataset Packet reference</h3>
+        <code id="packet-reference" class="packet-reference">No packet reference.</code>
+      </div>
+    </section>
+
+    <section class="panel notice" aria-labelledby="authority-title">
+      <p class="step">AUTHORITY GUARD</p>
+      <h2 id="authority-title">Web does not redefine Canonical truth</h2>
+      <p>Dataset identity, Source Snapshot authority, Canonical logical hashes, precision, row order and Bid/Ask semantics remain owned by the accepted Phase 1–2 contracts. FAIL and HOLD are never displayed as success.</p>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
