@@ -5,7 +5,7 @@ import {
   PRECISION_RATE_LIMIT_CAP_MS,
   precisionMetadataRetryDelayMs,
 } from '../../src/precision/upstream-multiplier.js';
-import { classifyFailure } from '../../src/actions/execute-cli.js';
+import { classifyPhase4ExecutionFailure } from '../../src/actions/failure.js';
 
 test('precision metadata 429 uses bounded longer backoff', () => {
   assert.equal(precisionMetadataRetryDelayMs(429, null, 1, 0), PRECISION_RATE_LIMIT_BASE_MS);
@@ -16,7 +16,7 @@ test('precision metadata 429 uses bounded longer backoff', () => {
 });
 
 test('precision metadata HTTP failure is not classified as INTERNAL_ERROR', () => {
-  assert.equal(classifyFailure(new Error('Precision metadata request failed with HTTP 429')), 'PRECISION_NOT_VERIFIED');
-  assert.equal(classifyFailure(new Error('Upstream precision payload missing times[] for hour 3')), 'PRECISION_NOT_VERIFIED');
-  assert.equal(classifyFailure(new Error('unrelated failure')), 'INTERNAL_ERROR');
+  assert.equal(classifyPhase4ExecutionFailure(new Error('Precision metadata request failed with HTTP 429')), 'PRECISION_NOT_VERIFIED');
+  assert.equal(classifyPhase4ExecutionFailure(new Error('Upstream precision payload missing times[] for hour 3')), 'PRECISION_NOT_VERIFIED');
+  assert.equal(classifyPhase4ExecutionFailure(new Error('unrelated failure')), 'INTERNAL_ERROR');
 });
