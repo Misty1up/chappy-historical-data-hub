@@ -10,8 +10,9 @@ import {
   rm,
   stat,
   statfs,
+  writeFile,
 } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import { pipeline } from 'node:stream/promises';
 import { createInflateRaw } from 'node:zlib';
 import {
@@ -366,7 +367,8 @@ class InstallZipArchive {
     const record = this.record(name);
     await mkdir(dirname(destination), { recursive: true });
     if (record.compressedSize === 0) {
-      await pipeline(createReadStream('/dev/null'), createWriteStream(destination));
+      if (record.uncompressedSize !== 0) installError('STAGING_VERIFY_FAIL', 'FAIL', `ZIP empty compressed entry has nonzero output size: ${name}`);
+      await writeFile(destination, new Uint8Array<ArrayBuffer>(new ArrayBuffer(0)), { flag: 'wx' });
       return;
     }
     const { start, end } = await this.compressedRange(record);
@@ -441,7 +443,7 @@ async function publishOrResolveRace(
     await rename(stagingRunRoot, finalDatasetRoot);
     return 'IMPORTED';
   } catch (cause) {
-    const raced = await scanExistingFinal(candidate, localRoot).catch(error => { throw error; });
+    const raced = await scanExistingFinal(candidate, localRoot);
     if (raced) {
       await rm(stagingRunRoot, { recursive: true, force: true }).catch(() => undefined);
       return 'ALREADY_REGISTERED';
