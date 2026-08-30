@@ -8,6 +8,7 @@ import {
   readdir,
   rename,
   rm,
+  rmdir,
   stat,
   statfs,
   writeFile,
@@ -59,6 +60,7 @@ export interface LocalInstallResult {
 /** Test-only fault injection. Hooks can only add faults; they cannot bypass validation gates. */
 export interface LocalInstallerTestHooks {
   afterMaterialize?: (stagingPacketRoot: string) => Promise<void>;
+  beforePublish?: (finalDatasetRoot: string) => Promise<void>;
 }
 
 interface ZipRecord {
@@ -437,23 +439,36 @@ async function publishOrResolveRace(
   candidate: LocalPacketScanResult,
   localRoot: string,
   stagingRunRoot: string,
+  stagingPacketRoot: string,
   finalDatasetRoot: string,
 ): Promise<'IMPORTED' | 'ALREADY_REGISTERED'> {
   try {
-    await rename(stagingRunRoot, finalDatasetRoot);
-    return 'IMPORTED';
+    await mkdir(finalDatasetRoot, { recursive: false });
   } catch (cause) {
-    const raced = await scanExistingFinal(candidate, localRoot);
-    if (raced) {
-      await rm(stagingRunRoot, { recursive: true, force: true }).catch(() => undefined);
-      return 'ALREADY_REGISTERED';
+    if ((cause as NodeJS.ErrnoException).code === 'EEXIST') {
+      const raced = await scanExistingFinal(candidate, localRoot);
+      if (raced) return 'ALREADY_REGISTERED';
+      installError('ATOMIC_PUBLISH_FAIL', 'HOLD', `Destination collision changed during publish: ${finalDatasetRoot}`);
     }
     installError(
       'ATOMIC_PUBLISH_FAIL',
       'FAIL',
-      `Atomic dataset publish failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+      `Could not claim dataset destination without overwrite: ${cause instanceof Error ? cause.message : String(cause)}`,
     );
   }
+
+  try {
+    await rename(stagingPacketRoot, candidate.intended_destination_path);
+  } catch (cause) {
+    await rmdir(finalDatasetRoot).catch(() => undefined);
+    installError(
+      'ATOMIC_PUBLISH_FAIL',
+      'FAIL',
+      `Atomic DATA_PACKET publish failed: ${cause instanceof Error ? cause.message : String(cause)}`,
+    );
+  }
+  await rmdir(stagingRunRoot).catch(() => undefined);
+  return 'IMPORTED';
 }
 
 export async function importLocalDatasetPacket(
@@ -511,8 +526,15 @@ export async function importLocalDatasetPacket(
 
     const lateExisting = await scanExistingFinal(candidate, root);
     if (lateExisting) return lateExisting;
+    if (hooks.beforePublish) await hooks.beforePublish(finalDatasetRoot);
 
-    const publishStatus = await publishOrResolveRace(candidate, root, stagingRunRoot, finalDatasetRoot);
+    const publishStatus = await publishOrResolveRace(
+      candidate,
+      root,
+      stagingRunRoot,
+      stagingPacketRoot,
+      finalDatasetRoot,
+    );
     published = publishStatus === 'IMPORTED';
     return {
       local_import_status: publishStatus,
