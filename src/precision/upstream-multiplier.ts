@@ -1,12 +1,15 @@
 import { sha256Text } from '../core/hash.js';
 import {
   PROJECT_DEFAULT_MAX_ATTEMPTS,
+  retryDelayMs,
   waitBeforeRetry,
 } from '../core/retry-policy.js';
 import type { SymbolRegistryEntry } from '../types/contracts.js';
 import { decoderPriceDigitsFromMultiplierRaw, normalizedDecimalKey } from './decimal.js';
 
 export const DUKASCOPY_DATA_API_ROOT = 'https://jetta.dukascopy.com/v1';
+export const PRECISION_RATE_LIMIT_BASE_MS = 15_000;
+export const PRECISION_RATE_LIMIT_CAP_MS = 120_000;
 
 export interface MultiplierObservation {
   hour_utc: number;
@@ -76,18 +79,50 @@ export function parseMultiplierPayload(text: string, hour: number): {
   return { tickDeltaCount: parsed.times.length, multiplierRaw, multiplierParsed: parsed.multiplier };
 }
 
+function retryAfterMs(retryAfter: string | null, nowMs: number): number | null {
+  if (retryAfter === null) return null;
+  const trimmed = retryAfter.trim();
+  if (/^\d+(?:\.\d+)?$/.test(trimmed)) return Math.max(0, Math.ceil(Number(trimmed) * 1000));
+  const parsedDate = Date.parse(trimmed);
+  if (!Number.isFinite(parsedDate)) return null;
+  return Math.max(0, parsedDate - nowMs);
+}
+
+export function precisionMetadataRetryDelayMs(
+  status: number | null,
+  retryAfter: string | null,
+  attempt: number,
+  nowMs = Date.now(),
+): number | null {
+  if (status !== 429) return null;
+  const fallback = PRECISION_RATE_LIMIT_BASE_MS * (2 ** (attempt - 1));
+  const serverRequested = retryAfterMs(retryAfter, nowMs) ?? 0;
+  return Math.min(Math.max(fallback, serverRequested), PRECISION_RATE_LIMIT_CAP_MS);
+}
+
 async function fetchTextWithProjectRetry(url: string): Promise<{ status: number; text: string }> {
   let lastError: unknown = null;
   for (let attempt = 1; attempt <= PROJECT_DEFAULT_MAX_ATTEMPTS; attempt += 1) {
+    let retryStatus: number | null = null;
+    let retryAfter: string | null = null;
     try {
       const response = await fetch(url, { headers: { accept: 'application/json' } });
       const text = await response.text();
       if (response.ok) return { status: response.status, text };
+      retryStatus = response.status;
+      retryAfter = response.headers.get('retry-after');
       lastError = new Error(`Precision metadata request failed with HTTP ${response.status}`);
     } catch (error) {
       lastError = error;
     }
-    if (attempt < PROJECT_DEFAULT_MAX_ATTEMPTS) await waitBeforeRetry(attempt);
+    if (attempt < PROJECT_DEFAULT_MAX_ATTEMPTS) {
+      const rateLimitDelay = precisionMetadataRetryDelayMs(retryStatus, retryAfter, attempt);
+      if (rateLimitDelay !== null) {
+        await new Promise(resolve => setTimeout(resolve, rateLimitDelay));
+      } else {
+        await waitBeforeRetry(attempt);
+      }
+    }
   }
   throw lastError instanceof Error ? lastError : new Error('Precision metadata request failed');
 }

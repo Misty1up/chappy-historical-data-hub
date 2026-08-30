@@ -5,6 +5,7 @@ import { atomicWriteFile } from '../core/atomic-write.js';
 import type { DatasetPacketManifest } from '../packet/types.js';
 import type { WebJobRequest } from '../web/contract.js';
 import { buildPhase4ExecutionPlan, executePhase4Plan, phase4ExecutionRootForRequest } from './execute.js';
+import { classifyPhase4ExecutionFailure } from './failure.js';
 import { buildFailureActionResult, buildPassActionResult, type Phase4QuickManifest, type Phase4ResultContext } from './result.js';
 
 function gitCommit(): string {
@@ -25,12 +26,6 @@ function context(startedAtUtc: string): Phase4ResultContext {
     started_at_utc: startedAtUtc,
     completed_at_utc: new Date().toISOString(),
   };
-}
-
-function classifyFailure(error: unknown): string {
-  const detail = error instanceof Error ? error.message : String(error);
-  if (detail.includes('exact UTC midnight') || detail.includes('range contains no UTC days')) return 'INVALID_UTC_RANGE';
-  return 'INTERNAL_ERROR';
 }
 
 async function main(): Promise<void> {
@@ -58,7 +53,7 @@ async function main(): Promise<void> {
   } catch (error: unknown) {
     await mkdir(root, { recursive: true });
     const detail = error instanceof Error ? error.stack ?? error.message : String(error);
-    const result = buildFailureActionResult(request, context(startedAtUtc), classifyFailure(error), detail);
+    const result = buildFailureActionResult(request, context(startedAtUtc), classifyPhase4ExecutionFailure(error), detail);
     await atomicWriteFile(resultPath, `${JSON.stringify(result, null, 2)}\n`);
     console.error(detail);
     console.error(`Failure action result: ${resultPath}`);
