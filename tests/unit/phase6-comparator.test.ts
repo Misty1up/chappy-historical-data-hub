@@ -82,6 +82,12 @@ test('P6.2 rejects tolerance for authority/identity paths and wildcard/global ru
   }
 });
 
+test('P6.2 rejects tolerant rules outside derived feature/result layers', () => {
+  for (const layer of ['INPUT','SIGNAL','EXECUTION'] as const) {
+    assert.throws(() => createPhase6ComparatorProfile('BAD_LAYER', [{ layer, field_path:'fields.synthetic_float', comparator:'ABSOLUTE', abs_tolerance:0.1, units:'u', rationale:'not allowed outside derived feature/result' }]), (e:any) => e instanceof Phase6ComparatorProfileError);
+  }
+});
+
 test('P6.2 tolerant comparator never treats boolean/string mismatch as numeric tolerance PASS', () => {
   const {n,m}=pair([['INDICATOR_FEATURE',0,3,{feature_state:'A'}]]); m[0]!.fields.feature_state='B';
   const p=createPhase6ComparatorProfile('TYPE_V1',[{layer:'INDICATOR_FEATURE',field_path:'fields.feature_state',comparator:'ABSOLUTE',abs_tolerance:1,units:'state',rationale:'synthetic rejection check'}]);

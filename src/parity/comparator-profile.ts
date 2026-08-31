@@ -57,6 +57,9 @@ function validateRule(rule: Phase6ComparatorRule, index: number): void {
     if (rule.abs_tolerance !== undefined || rule.rel_tolerance !== undefined) profileError(`rules[${index}] EXACT must not declare tolerance`);
     return;
   }
+  if (rule.layer !== 'INDICATOR_FEATURE' && rule.layer !== 'RESULT') {
+    profileError(`rules[${index}] tolerance is restricted to derived INDICATOR_FEATURE or RESULT fields`);
+  }
   if (isAuthorityPath(rule.field_path)) profileError(`rules[${index}] cannot make an authority/identity field tolerant`);
   if (typeof rule.units !== 'string' || rule.units.length === 0) profileError(`rules[${index}] tolerant comparator requires units`);
   if (typeof rule.rationale !== 'string' || rule.rationale.length === 0) profileError(`rules[${index}] tolerant comparator requires rationale`);
