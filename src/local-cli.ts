@@ -1,3 +1,4 @@
+import { LocalHandoffError, buildLocalConsumerHandoff } from './local/handoff.js';
 import { LocalInstallError } from './local/installer.js';
 import { LocalPacketError, scanLocalDatasetPacket } from './local/packet-verifier.js';
 import {
@@ -38,14 +39,14 @@ function only(options: Map<string, string>, allowed: readonly string[]): void {
 
 function usage(): never {
   throw new Error(
-    'Phase 5 usage: hdh local <scan|import|adopt|list|show|verify> '
+    'Phase 5 usage: hdh local <scan|import|adopt|list|show|verify|handoff> '
     + '[--input <local-path>] [--dataset-id <dataset_id>] --root <local-hdh-root>',
   );
 }
 
 export async function runLocalCommand(args: string[]): Promise<void> {
   const [subcommand, ...rest] = args;
-  if (!subcommand || !['scan', 'import', 'adopt', 'list', 'show', 'verify'].includes(subcommand)) usage();
+  if (!subcommand || !['scan', 'import', 'adopt', 'list', 'show', 'verify', 'handoff'].includes(subcommand)) usage();
   const options = parseOptions(rest);
   const root = required(options, 'root');
 
@@ -82,6 +83,11 @@ export async function runLocalCommand(args: string[]): Promise<void> {
         result = await verifyRegisteredDataset(root, required(options, 'dataset-id'));
         break;
       }
+      case 'handoff': {
+        only(options, ['dataset-id', 'root']);
+        result = await buildLocalConsumerHandoff(root, required(options, 'dataset-id'));
+        break;
+      }
       default:
         usage();
     }
@@ -91,6 +97,7 @@ export async function runLocalCommand(args: string[]): Promise<void> {
       cause instanceof LocalPacketError
       || cause instanceof LocalInstallError
       || cause instanceof LocalRegistryError
+      || cause instanceof LocalHandoffError
     ) {
       console.log(JSON.stringify({
         local_import_status: cause.status,
