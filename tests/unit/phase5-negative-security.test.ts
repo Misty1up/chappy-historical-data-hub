@@ -494,7 +494,11 @@ test('P5.6 Phase 5 runtime is offline/local-first and has no execution/network p
     const source = await readSource(file);
     for (const token of forbidden) assert.equal(source.includes(token), false, `${file} contains forbidden runtime token ${token}`);
     assert.doesNotMatch(source, /\bfetch\s*\(/, `${file} must not use fetch`);
-    assert.doesNotMatch(source, /\b(?:exec|execFile|spawn|fork)\s*\(/, `${file} must not execute Packet/process content`);
+    assert.doesNotMatch(
+      source,
+      /(^|[^\w.])(?:execFileSync|execFile|exec|spawnSync|spawn|fork)\s*\(/m,
+      `${file} must not execute Packet/process content`,
+    );
   }
 });
 
