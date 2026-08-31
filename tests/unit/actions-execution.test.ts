@@ -38,6 +38,16 @@ test('P4.3 RESEARCH plan composes accepted acquisition/precision/parquet/MT5-der
   assert.match(plan.commands.at(-1)!.join(' '), /--precision-evidence .*precision_evidence\.json/);
 });
 
+test('P4.3/P4.5 Dataset Packet path uses the frozen DATA_PACKET Artifact wrapper name', () => {
+  const plan = buildPhase4ExecutionPlan(request('RESEARCH_MASTER'));
+  assert.match(plan.paths.packet, /(?:^|\/)DATA_PACKET$/);
+  assert.doesNotMatch(plan.paths.packet, /(?:^|\/)packet$/);
+  const packetCommand = plan.commands.at(-1)!;
+  const outIndex = packetCommand.lastIndexOf('--out');
+  assert.ok(outIndex >= 0, 'packet command must contain --out');
+  assert.equal(packetCommand[outIndex + 1], plan.paths.packet);
+});
+
 test('P4.3 accepts equivalent strict UTC midnight form without explicit milliseconds', () => {
   const plan = buildPhase4ExecutionPlan({
     ...request('RESEARCH_MASTER'),
