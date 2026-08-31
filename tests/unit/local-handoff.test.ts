@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdtemp, readFile, rm, stat } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import test from 'node:test';
@@ -162,6 +162,20 @@ function assertInside(root: string, path: string): void {
   assert.equal(back === '..' || back.startsWith('../') || back.startsWith('..\\'), false);
 }
 
+async function packetFingerprint(packetRoot: string): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  async function walk(current: string): Promise<void> {
+    for (const entry of (await readdir(current, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+      const absolute = resolve(current, entry.name);
+      if (entry.isDirectory()) await walk(absolute);
+      else if (entry.isFile()) result[relative(packetRoot, absolute).replaceAll('\\', '/')] = await sha256File(absolute);
+      else assert.fail(`Unexpected fixture filesystem entry: ${absolute}`);
+    }
+  }
+  await walk(packetRoot);
+  return result;
+}
+
 test('P5.4 handoff exposes only verified Packet-bound Numba/MT5 references and performs no mutation', async () => {
   const root = await mkdtemp(join(tmpdir(), 'hdh-p54-handoff-'));
   try {
@@ -170,7 +184,7 @@ test('P5.4 handoff exposes only verified Packet-bound Numba/MT5 references and p
     await writeSyntheticPacket(source);
     const imported = await importAndRegisterLocalDatasetPacket(source, localRoot);
     const packetRoot = imported.final_packet_path;
-    const packetSumsBefore = await sha256File(resolve(packetRoot, 'SHA256SUMS.txt'));
+    const packetBefore = await packetFingerprint(packetRoot);
     const registryBefore = await sha256File(resolve(localRoot, 'registry', 'hdh_registry.sqlite'));
 
     const result = await buildLocalConsumerHandoff(localRoot, DATASET_ID);
@@ -209,7 +223,7 @@ test('P5.4 handoff exposes only verified Packet-bound Numba/MT5 references and p
     assert.equal(result.terminal_mt5_mutation_performed, false);
     assert.equal(result.strategy_evaluation_performed, false);
     assert.equal(result.numba_mt5_parity_declared, false);
-    assert.equal(await sha256File(resolve(packetRoot, 'SHA256SUMS.txt')), packetSumsBefore);
+    assert.deepEqual(await packetFingerprint(packetRoot), packetBefore);
     assert.equal(await sha256File(resolve(localRoot, 'registry', 'hdh_registry.sqlite')), registryBefore);
   } finally {
     await rm(root, { recursive: true, force: true });
