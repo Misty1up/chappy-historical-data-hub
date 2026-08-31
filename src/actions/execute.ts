@@ -57,7 +57,7 @@ export function buildPhase4ExecutionPlan(request: WebJobRequest, root = '.hdh-ph
     precision: `${base}/precision`,
     canonical: `${base}/canonical-work`,
     mt5: `${base}/mt5-work`,
-    packet: `${base}/packet`
+    packet: `${base}/DATA_PACKET`
   };
 
   const commands: string[][] = [[
