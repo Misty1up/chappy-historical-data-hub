@@ -57,3 +57,36 @@ jobs:
 
       - name: Verify Web static output
         run: npm run verify:web-static
+
+  windows-local-gate:
+    name: Windows Node 20 local-first gate
+    runs-on: windows-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit tests including Phase 5 Windows path coverage
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      - name: Build Web static output
+        run: npm run build:web
+
+      - name: Verify Web static output
+        run: npm run verify:web-static

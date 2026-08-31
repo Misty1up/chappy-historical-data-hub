@@ -6,7 +6,7 @@ import test from 'node:test';
 const SKILL_PATH = resolve('skills', 'hdh-local-import', 'SKILL.md');
 
 async function skillText(): Promise<string> {
-  return readFile(SKILL_PATH, 'utf8');
+  return (await readFile(SKILL_PATH, 'utf8')).replaceAll('\r\n', '\n').replaceAll('\r', '\n');
 }
 
 function executableSurface(text: string): string[] {
