@@ -91,7 +91,8 @@ function isEnoent(value: unknown): boolean {
 
 function pathIsInside(parent: string, child: string): boolean {
   const back = relative(resolve(parent), resolve(child));
-  return back !== '' && back !== '.' && back !== '..' && !back.startsWith('../') && !back.startsWith('..\\') && !isAbsolute(back);
+  return back !== '' && back !== '.' && back !== '..'
+    && !back.startsWith('../') && !back.startsWith('..\\') && !isAbsolute(back);
 }
 
 function assertContained(root: string, candidate: string): void {
@@ -123,7 +124,9 @@ async function nearestExistingAncestor(path: string): Promise<string> {
   for (;;) {
     if (await pathStat(cursor)) return cursor;
     const parent = dirname(cursor);
-    if (parent === cursor) installError('WINDOWS_PATH_UNSAFE', 'HOLD', `No existing filesystem ancestor for local root: ${path}`);
+    if (parent === cursor) {
+      installError('WINDOWS_PATH_UNSAFE', 'HOLD', `No existing filesystem ancestor for local root: ${path}`);
+    }
     cursor = parent;
   }
 }
@@ -158,14 +161,26 @@ async function scanExistingFinal(
   const datasetEntry = await pathStat(finalDatasetRoot);
   if (!datasetEntry) return null;
   if (datasetEntry.isSymbolicLink() || !datasetEntry.isDirectory()) {
-    installError('DESTINATION_ALREADY_EXISTS_UNEXPECTED', 'HOLD', `Dataset destination is not an ordinary directory: ${finalDatasetRoot}`);
+    installError(
+      'DESTINATION_ALREADY_EXISTS_UNEXPECTED',
+      'HOLD',
+      `Dataset destination is not an ordinary directory: ${finalDatasetRoot}`,
+    );
   }
   const finalEntry = await pathStat(finalPacket);
   if (!finalEntry) {
-    installError('DESTINATION_ALREADY_EXISTS_UNEXPECTED', 'HOLD', `Dataset destination exists without DATA_PACKET: ${finalDatasetRoot}`);
+    installError(
+      'DESTINATION_ALREADY_EXISTS_UNEXPECTED',
+      'HOLD',
+      `Dataset destination exists without DATA_PACKET: ${finalDatasetRoot}`,
+    );
   }
   if (finalEntry.isSymbolicLink() || !finalEntry.isDirectory()) {
-    installError('DATASET_ID_COLLISION_OR_LOCAL_CORRUPTION', 'FAIL', `Existing DATA_PACKET is not an ordinary directory: ${finalPacket}`);
+    installError(
+      'DATASET_ID_COLLISION_OR_LOCAL_CORRUPTION',
+      'FAIL',
+      `Existing DATA_PACKET is not an ordinary directory: ${finalPacket}`,
+    );
   }
 
   let existing: LocalPacketScanResult;
@@ -212,20 +227,28 @@ async function copyDirectoryPacket(sourceRoot: string, destinationRoot: string):
   await mkdir(destinationRoot, { recursive: false });
 
   async function copyTree(currentSource: string, currentDestination: string): Promise<void> {
-    for (const entry of (await readdir(currentSource, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
+    const entries = (await readdir(currentSource, { withFileTypes: true }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    for (const entry of entries) {
       const sourcePath = resolve(currentSource, entry.name);
       const destinationPath = resolve(currentDestination, entry.name);
       assertContained(sourceRoot, sourcePath);
       assertContained(destinationRoot, destinationPath);
       const actual = await lstat(sourcePath);
-      if (actual.isSymbolicLink()) installError('WINDOWS_PATH_UNSAFE', 'HOLD', `Source Packet changed to symbolic link during copy: ${sourcePath}`);
+      if (actual.isSymbolicLink()) {
+        installError('WINDOWS_PATH_UNSAFE', 'HOLD', `Source Packet changed to symbolic link during copy: ${sourcePath}`);
+      }
       if (actual.isDirectory()) {
         await mkdir(destinationPath, { recursive: false });
         await copyTree(sourcePath, destinationPath);
       } else if (actual.isFile()) {
         await copyFile(sourcePath, destinationPath);
       } else {
-        installError('WINDOWS_PATH_UNSAFE', 'HOLD', `Source Packet contains unsupported filesystem entry: ${sourcePath}`);
+        installError(
+          'WINDOWS_PATH_UNSAFE',
+          'HOLD',
+          `Source Packet contains unsupported filesystem entry: ${sourcePath}`,
+        );
       }
     }
   }
@@ -241,7 +264,11 @@ function u32(bytes: Uint8Array<ArrayBuffer>, offset: number): number {
   return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(offset, true);
 }
 
-async function readExact(handle: Awaited<ReturnType<typeof open>>, position: number, length: number): Promise<Uint8Array<ArrayBuffer>> {
+async function readExact(
+  handle: Awaited<ReturnType<typeof open>>,
+  position: number,
+  length: number,
+): Promise<Uint8Array<ArrayBuffer>> {
   const bytes = new Uint8Array<ArrayBuffer>(new ArrayBuffer(length));
   let offset = 0;
   while (offset < length) {
@@ -253,7 +280,9 @@ async function readExact(handle: Awaited<ReturnType<typeof open>>, position: num
 }
 
 function safeArchivePath(rawName: string): string {
-  if (!rawName || rawName.includes('\0')) installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP entry has an empty or NUL-containing path');
+  if (!rawName || rawName.includes('\0')) {
+    installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP entry has an empty or NUL-containing path');
+  }
   const normalized = rawName.replaceAll('\\', '/');
   if (normalized.startsWith('/') || normalized.startsWith('//') || /^[A-Za-z]:/.test(normalized)) {
     installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP entry is absolute or drive-qualified: ${rawName}`);
@@ -282,9 +311,13 @@ class InstallZipArchive {
       const tail = await readExact(handle, zipStat.size - tailSize, tailSize);
       let eocd = -1;
       for (let index = tail.length - ZIP_EOCD_MIN_SIZE; index >= 0; index -= 1) {
-        if (u32(tail, index) === 0x06054b50) { eocd = index; break; }
+        if (u32(tail, index) === 0x06054b50) {
+          eocd = index;
+          break;
+        }
       }
       if (eocd < 0) installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP end-of-central-directory record was not found');
+
       const diskNumber = u16(tail, eocd + 4);
       const centralDisk = u16(tail, eocd + 6);
       const entriesOnDisk = u16(tail, eocd + 8);
@@ -297,7 +330,10 @@ class InstallZipArchive {
       if (totalEntries === 0xffff || centralSize === 0xffffffff || centralOffset === 0xffffffff) {
         installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP64 metadata is not supported by the Phase 5 MVP');
       }
-      if (centralOffset + centralSize > zipStat.size) installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP central directory exceeds file bounds');
+      if (centralOffset + centralSize > zipStat.size) {
+        installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP central directory exceeds file bounds');
+      }
+
       const central = await readExact(handle, centralOffset, centralSize);
       const records = new Map<string, ZipRecord>();
       let cursor = 0;
@@ -315,18 +351,35 @@ class InstallZipArchive {
         const externalAttributes = u32(central, cursor + 38);
         const localHeaderOffset = u32(central, cursor + 42);
         const recordLength = 46 + nameLength + extraLength + commentLength;
-        if (cursor + recordLength > central.length) installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP central entry exceeds bounds');
+        if (cursor + recordLength > central.length) {
+          installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'ZIP central entry exceeds bounds');
+        }
         const rawName = decoder.decode(central.subarray(cursor + 46, cursor + 46 + nameLength));
         const name = safeArchivePath(rawName);
         const unixMode = (externalAttributes >>> 16) & 0xffff;
-        if ((unixMode & 0o170000) === 0o120000) installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP symbolic-link entry refused: ${rawName}`);
+        if ((unixMode & 0o170000) === 0o120000) {
+          installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP symbolic-link entry refused: ${rawName}`);
+        }
         if ((flags & 0x1) !== 0 || (compressionMethod !== 0 && compressionMethod !== 8)) {
-          installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP entry uses unsupported encryption/compression: ${rawName}`);
+          installError(
+            'WINDOWS_PATH_UNSAFE',
+            'HOLD',
+            `ZIP entry uses unsupported encryption/compression: ${rawName}`,
+          );
         }
         const directory = rawName.endsWith('/') || rawName.endsWith('\\') || (unixMode & 0o170000) === 0o040000;
         if (!directory) {
-          if (records.has(name)) installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP contains duplicate normalized file path: ${name}`);
-          records.set(name, { name, compressedSize, uncompressedSize, compressionMethod, flags, localHeaderOffset });
+          if (records.has(name)) {
+            installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP contains duplicate normalized file path: ${name}`);
+          }
+          records.set(name, {
+            name,
+            compressedSize,
+            uncompressedSize,
+            compressionMethod,
+            flags,
+            localHeaderOffset,
+          });
         }
         cursor += recordLength;
       }
@@ -346,14 +399,18 @@ class InstallZipArchive {
     const handle = await open(this.zipPath, 'r');
     try {
       const header = await readExact(handle, record.localHeaderOffset, 30);
-      if (u32(header, 0) !== 0x04034b50) installError('WINDOWS_PATH_UNSAFE', 'HOLD', `Malformed ZIP local header: ${record.name}`);
+      if (u32(header, 0) !== 0x04034b50) {
+        installError('WINDOWS_PATH_UNSAFE', 'HOLD', `Malformed ZIP local header: ${record.name}`);
+      }
       if (u16(header, 6) !== record.flags || u16(header, 8) !== record.compressionMethod) {
         installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP local/central metadata mismatch: ${record.name}`);
       }
       const nameLength = u16(header, 26);
       const extraLength = u16(header, 28);
       const localName = decoder.decode(await readExact(handle, record.localHeaderOffset + 30, nameLength));
-      if (safeArchivePath(localName) !== record.name) installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP local/central path mismatch: ${record.name}`);
+      if (safeArchivePath(localName) !== record.name) {
+        installError('WINDOWS_PATH_UNSAFE', 'HOLD', `ZIP local/central path mismatch: ${record.name}`);
+      }
       const start = record.localHeaderOffset + 30 + nameLength + extraLength;
       return { start, end: start + record.compressedSize - 1 };
     } finally {
@@ -369,7 +426,9 @@ class InstallZipArchive {
     const record = this.record(name);
     await mkdir(dirname(destination), { recursive: true });
     if (record.compressedSize === 0) {
-      if (record.uncompressedSize !== 0) installError('STAGING_VERIFY_FAIL', 'FAIL', `ZIP empty compressed entry has nonzero output size: ${name}`);
+      if (record.uncompressedSize !== 0) {
+        installError('STAGING_VERIFY_FAIL', 'FAIL', `ZIP empty compressed entry has nonzero output size: ${name}`);
+      }
       await writeFile(destination, new Uint8Array<ArrayBuffer>(new ArrayBuffer(0)), { flag: 'wx' });
       return;
     }
@@ -398,7 +457,9 @@ async function copyZipPacket(scan: LocalPacketScanResult, destinationRoot: strin
   const archive = await InstallZipArchive.load(scan.input_path);
   const prefix = `${zipPrefix(scan)}/`;
   const names = archive.fileNames().filter(name => name.startsWith(prefix)).sort((a, b) => a.localeCompare(b));
-  if (names.length === 0) installError('STAGING_VERIFY_FAIL', 'FAIL', 'Validated ZIP Packet contains no files during materialization');
+  if (names.length === 0) {
+    installError('STAGING_VERIFY_FAIL', 'FAIL', 'Validated ZIP Packet contains no files during materialization');
+  }
   await mkdir(destinationRoot, { recursive: false });
   for (const name of names) {
     const relativePath = name.slice(prefix.length);
@@ -414,7 +475,11 @@ async function copyZipPacket(scan: LocalPacketScanResult, destinationRoot: strin
 async function ensureLocalRootSafe(scan: LocalPacketScanResult, localRoot: string): Promise<void> {
   const root = resolve(localRoot);
   if (scan.input_type === 'DIRECTORY' && (root === scan.input_path || pathIsInside(scan.input_path, root))) {
-    installError('WINDOWS_PATH_UNSAFE', 'HOLD', 'Local HDH root must not be created inside the selected source directory tree');
+    installError(
+      'WINDOWS_PATH_UNSAFE',
+      'HOLD',
+      'Local HDH root must not be created inside the selected source directory tree',
+    );
   }
   await requireOrdinaryDirectory(root, 'Local HDH root');
   const staging = resolve(root, '.staging');
@@ -471,14 +536,15 @@ async function publishOrResolveRace(
   return 'IMPORTED';
 }
 
-export async function importLocalDatasetPacket(
+async function importLocalDatasetPacketCore(
   inputPath: string,
   localRoot: string,
-  hooks: LocalInstallerTestHooks = {},
+  hooks: LocalInstallerTestHooks,
+  requireRegistryAbsent: boolean,
 ): Promise<LocalInstallResult> {
   const root = resolve(localRoot);
   const candidate = await scanLocalDatasetPacket(inputPath, root);
-  await ensureNoRegistry(candidate);
+  if (requireRegistryAbsent) await ensureNoRegistry(candidate);
   await ensureLocalRootSafe(candidate, root);
 
   const existing = await scanExistingFinal(candidate, root);
@@ -516,7 +582,12 @@ export async function importLocalDatasetPacket(
       staged = await scanLocalDatasetPacket(stagingPacketRoot, root);
     } catch (cause) {
       if (cause instanceof LocalPacketError) {
-        installError('STAGING_VERIFY_FAIL', 'FAIL', `Staged Packet failed validation: ${cause.code}: ${cause.message}`, cause.code);
+        installError(
+          'STAGING_VERIFY_FAIL',
+          'FAIL',
+          `Staged Packet failed validation: ${cause.code}: ${cause.message}`,
+          cause.code,
+        );
       }
       throw cause;
     }
@@ -552,4 +623,30 @@ export async function importLocalDatasetPacket(
   } finally {
     if (!published) await rm(stagingRunRoot, { recursive: true, force: true }).catch(() => undefined);
   }
+}
+
+/**
+ * P5.2 public installer. It retains the accepted P5.2 rule that any SQLite
+ * registry presence is outside its authority and therefore HOLDs.
+ */
+export async function importLocalDatasetPacket(
+  inputPath: string,
+  localRoot: string,
+  hooks: LocalInstallerTestHooks = {},
+): Promise<LocalInstallResult> {
+  return importLocalDatasetPacketCore(inputPath, localRoot, hooks, true);
+}
+
+/**
+ * P5.3-only filesystem installer entry. The caller must already hold the
+ * P5.3 registry write lock and own row-level reconciliation. This function
+ * still performs every accepted P5.2 byte/staging/no-clobber gate and never
+ * reads or mutates SQLite itself.
+ */
+export async function installLocalDatasetPacketWithRegistryCoordination(
+  inputPath: string,
+  localRoot: string,
+  hooks: LocalInstallerTestHooks = {},
+): Promise<LocalInstallResult> {
+  return importLocalDatasetPacketCore(inputPath, localRoot, hooks, false);
 }
