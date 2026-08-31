@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/Misty1up/chappy-historical-data-hub/schemas/phase6_numba_trace_report.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_schema_version",
+    "adapter_version",
+    "probe_id",
+    "probe_version",
+    "parity_run_id",
+    "dataset_id",
+    "tick_count_total",
+    "trace_event_count",
+    "layer_counts",
+    "trade_count",
+    "total_pnl_scaled",
+    "trace_root_sha256",
+    "environment_versions",
+    "input_mutation",
+    "canonical_reorder",
+    "source_reacquisition"
+  ],
+  "properties": {
+    "report_schema_version": {"const": "HDH_P6_NUMBA_TRACE_REPORT_V1"},
+    "adapter_version": {"const": "P6_NUMBA_REFERENCE_ADAPTER_V1"},
+    "probe_id": {"const": "P6_REFERENCE_PARITY_PROBE_V1"},
+    "probe_version": {"const": "1.0.0"},
+    "parity_run_id": {"type": "string", "pattern": "^HDH_P6_RUN_V1_[0-9a-f]{64}$"},
+    "dataset_id": {"type": "string", "pattern": "^HDH_DATASET_V1_[0-9a-f]{64}$"},
+    "tick_count_total": {"type": "integer", "minimum": 1},
+    "trace_event_count": {"type": "integer", "minimum": 1},
+    "layer_counts": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["INPUT", "INDICATOR_FEATURE", "SIGNAL", "EXECUTION", "RESULT"],
+      "properties": {
+        "INPUT": {"type": "integer", "minimum": 1},
+        "INDICATOR_FEATURE": {"type": "integer", "minimum": 1},
+        "SIGNAL": {"type": "integer", "minimum": 0},
+        "EXECUTION": {"type": "integer", "minimum": 0},
+        "RESULT": {"type": "integer", "minimum": 1}
+      }
+    },
+    "trade_count": {"type": "integer", "minimum": 0},
+    "total_pnl_scaled": {"type": "integer"},
+    "trace_root_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "environment_versions": {
+      "type": "object",
+      "additionalProperties": {"type": "string"},
+      "required": ["python", "numba", "llvmlite", "numpy", "pyarrow"]
+    },
+    "input_mutation": {"const": false},
+    "canonical_reorder": {"const": false},
+    "source_reacquisition": {"const": false}
+  }
+}
