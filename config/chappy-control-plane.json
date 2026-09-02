@@ -25,6 +25,7 @@
     "canonical_write_owner": "CHAPPY",
     "prompt_persistence_order": "persist_before_display",
     "codex_return_contract": "machine_readable_return_packet",
+    "codex_return_schema_path": "schemas/chappy-codex-return-v1.schema.json",
     "codex_canonical_self_approval": false,
     "drift_recovery_owner": "CHAPPY"
   }

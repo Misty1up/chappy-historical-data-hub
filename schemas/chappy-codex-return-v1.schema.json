@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://chappy.local/schemas/codex-return-v1.json",
+  "title": "CHAPPY Codex Return Packet v1",
+  "type": "object",
+  "required": ["schema_version", "project_id", "task_id", "execution_status", "prompt_identity", "repository_full_name", "changed_files", "tests", "evidence", "blocked", "unresolved", "recommended_next_actor", "generated_at"],
+  "properties": {
+    "schema_version": { "const": "1.0" },
+    "project_id": { "type": "string", "minLength": 1 },
+    "task_id": { "type": "string", "minLength": 1 },
+    "execution_status": { "enum": ["COMPLETE", "PARTIAL", "BLOCKED", "FAILED", "HOLD", "NOT_RUN"] },
+    "prompt_identity": {
+      "type": "object",
+      "required": ["prompt_id", "prompt_sha256", "prompt_drive_id"],
+      "properties": {
+        "prompt_id": { "type": ["string", "null"] },
+        "prompt_sha256": { "type": ["string", "null"] },
+        "prompt_drive_id": { "type": ["string", "null"] }
+      },
+      "additionalProperties": true
+    },
+    "repository_full_name": { "type": ["string", "null"] },
+    "base_sha": { "type": ["string", "null"] },
+    "result_sha": { "type": ["string", "null"] },
+    "changed_files": { "type": "array", "items": { "type": "string" } },
+    "tests": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "enum": ["PASS", "FAIL", "SKIP", "NOT_RUN"] },
+          "evidence": { "type": ["string", "null"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["type", "ref"],
+        "properties": {
+          "type": { "type": "string" },
+          "ref": { "type": "string" },
+          "title": { "type": ["string", "null"] }
+        },
+        "additionalProperties": true
+      }
+    },
+    "blocked": { "type": "array", "items": { "type": "string" } },
+    "unresolved": { "type": "array", "items": { "type": "string" } },
+    "recommended_next_actor": { "const": "CHAPPY_REVIEW" },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "notes": { "type": ["string", "null"] }
+  },
+  "additionalProperties": true
+}
