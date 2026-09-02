@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "project_id": "HDH",
+  "control_plane": {
+    "drive_folder_id": "1dLYlfwOA-iqHRH9kMcvMv4BVnFavdUEc",
+    "spreadsheet_id": "1U2ck2DGP7_QkjmdXByx-ZGvLmoogTT5dvjZJF-549SQ",
+    "project_state_sheet": "PROJECT_STATE",
+    "prompt_registry_sheet": "PROMPT_REGISTRY",
+    "event_log_sheet": "EVENT_LOG",
+    "config_sheet": "CONFIG",
+    "project_key": "HDH"
+  },
+  "authority": {
+    "drive_workflow": "01_CURRENT_STATE_AND_ROADMAP",
+    "drive_workflow_id": "1872881Z5fTRK5G_d03iZNUfXgQXJRITL-w5IVTd6zdc",
+    "github_role": "code_pr_ci_runtime_truth",
+    "d1_role": "cache_and_activity_event_log_only"
+  },
+  "refresh": "on_app_open_or_manual_refresh",
+  "drift_policy": "show_SYNC_REQUIRED_do_not_guess"
+}
