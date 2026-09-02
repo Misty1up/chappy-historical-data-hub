@@ -17,5 +17,15 @@
     "d1_role": "cache_and_activity_event_log_only"
   },
   "refresh": "on_app_open_or_manual_refresh",
-  "drift_policy": "show_SYNC_REQUIRED_do_not_guess"
+  "drift_policy": "show_SYNC_REQUIRED_do_not_guess",
+  "workflow_sync": {
+    "version": "2",
+    "drive_document_id": "1LKtAneQXtfGVuvMmEgaK0FCsVgQjg_HlEu6l7hQtQrQ",
+    "user_state_maintenance": "never_required_in_normal_operation",
+    "canonical_write_owner": "CHAPPY",
+    "prompt_persistence_order": "persist_before_display",
+    "codex_return_contract": "machine_readable_return_packet",
+    "codex_canonical_self_approval": false,
+    "drift_recovery_owner": "CHAPPY"
+  }
 }
